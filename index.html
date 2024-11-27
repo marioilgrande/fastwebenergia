@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM CONTRATTI A2A</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 30px;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input, select {
+            width: 100%;
+            padding: 15px; /* Maggiore padding per i menu a tendina */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px; /* Font più grande per leggibilità */
+            line-height: 1.5; /* Migliorata l'altezza della linea */
+            box-sizing: border-box;
+        }
+        button {
+            padding: 12px;
+            width: 100%;
+            max-width: 200px;
+            height: 50px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            margin: auto;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 3cm;
+            flex-wrap: wrap;
+        }
+        .hidden {
+            display: none;
+        }
+        #popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 400px;
+            background-color: white;
+            border: 2px solid #007BFF;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+        #popup p {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 14px;
+        }
+        #popup button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #popup button:hover {
+            background-color: #0056b3;
+        }
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .button-row {
+                flex-direction: column;
+                gap: 20px;
+            }
+            button {
+                width: 100%;
+                max-width: none;
+            }
+            #popup {
+                width: 80%; /* Ridimensionamento popup */
+                padding: 15px; /* Minore padding per schermi piccoli */
+                font-size: 14px; /* Font ridotto nel popup */
+            }
+            #popup button {
+                padding: 8px 15px; /* Ridotto il padding del pulsante */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><strong>CRM CONTRATTI A2A</strong></h1>
+        <form id="leadForm">
+            <label for="tipoCliente">Tipo cliente:</label>
+            <select id="tipoCliente" name="tipoCliente" required>
+                <option value="">Seleziona...</option>
+                <option value="DOMESTICO">DOMESTICO</option>
+                <option value="BUSINESS">BUSINESS/CONDOMINIO</option>
+            </select>
+
+            <div id="businessFields" class="hidden">
+                <label for="ragioneSociale">Ragione Sociale:</label>
+                <input type="text" id="ragioneSociale" name="ragioneSociale">
+                <label for="partitaIva">Partita IVA:</label>
+                <input type="text" id="partitaIva" name="partitaIva">
+            </div>
+
+            <label for="tipoContratto">Tipo contratto:</label>
+            <select id="tipoContratto" name="tipoContratto">
+                <option value="">Seleziona...</option>
+                <option value="SWITCH LUCE">SWITCH LUCE</option>
+                <option value="SWITCH GAS">SWITCH GAS</option>
+                <option value="SWITCH DUAL">SWITCH DUAL</option>
+                <option value="VOLTURA LUCE">VOLTURA LUCE</option>
+                <option value="ATTIVAZIONE LUCE">ATTIVAZIONE LUCE</option>
+                <option value="ATTIVAZIONE GAS">ATTIVAZIONE GAS</option>
+                <option value="ATTIVAZIONE DUAL">ATTIVAZIONE DUAL</option>
+            </select>
+
+            <div id="dynamicFields" class="hidden">
+                <label for="nomeCognome">Nome e cognome:</label>
+                <input type="text" id="nomeCognome" name="nomeCognome">
+
+                <label for="codiceFiscale">Codice fiscale:</label>
+                <input type="text" id="codiceFiscale" name="codiceFiscale">
+
+                <div id="podField" class="hidden">
+                    <label for="pod">POD:</label>
+                    <input type="text" id="pod" name="pod">
+                </div>
+
+                <div id="pdrField" class="hidden">
+                    <label for="pdr">PDR:</label>
+                    <input type="text" id="pdr" name="pdr">
+                </div>
+
+                <label for="indirizzo">Indirizzo:</label>
+                <input type="text" id="indirizzo" name="indirizzo">
+
+                <label for="citta">Città:</label>
+                <input type="text" id="citta" name="citta">
+
+                <label for="telefono">Telefono:</label>
+                <input type="tel" id="telefono" name="telefono">
+
+                <label for="mail">Mail:</label>
+                <input type="email" id="mail" name="mail">
+
+                <label for="pagamento">Metodo di pagamento:</label>
+                <select id="pagamento" name="pagamento">
+                    <option value="">Seleziona...</option>
+                    <option value="IBAN">IBAN</option>
+                    <option value="BOLLETTINO">BOLLETTINO</option>
+                </select>
+                <div id="ibanField" class="hidden">
+                    <label for="codiceIban">Codice IBAN:</label>
+                    <input type="text" id="codiceIban" name="codiceIban">
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button type="button" onclick="sendViaWhatsApp()">Invia su WhatsApp</button>
+                <button type="button" onclick="sendViaMail()">Invia via Mail</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Popup -->
+    <div id="popup">
+        <p id="popupMessage"></p>
+        <button onclick="closePopup()">Ho capito</button>
+    </div>
+
+    <script>
+        const tipoCliente = document.getElementById('tipoCliente');
+        const tipoContratto = document.getElementById('tipoContratto');
+        const dynamicFields = document.getElementById('dynamicFields');
+        const businessFields = document.getElementById('businessFields');
+        const podField = document.getElementById('podField');
+        const pdrField = document.getElementById('pdrField');
+        const popup = document.getElementById('popup');
+        const popupMessage = document.getElementById('popupMessage');
+
+        tipoCliente.addEventListener('change', () => {
+            const isBusiness = tipoCliente.value === 'BUSINESS';
+            businessFields.classList.toggle('hidden', !isBusiness);
+            dynamicFields.classList.add('hidden');
+        });
+
+        tipoContratto.addEventListener('change', () => {
+            const selected = tipoContratto.value;
+            dynamicFields.classList.remove('hidden');
+            podField.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
+            pdrField.classList.toggle('hidden', !selected.includes('GAS') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
+
+            if (selected === 'VOLTURA LUCE') {
+                popupMessage.textContent = "PER QUESTA PRATICA BISOGNA ALLEGARE CARTA IDENTITÀ FRONTE E RETRO E DICHIARAZIONE TITOLO OCCUPAZIONALE COMPILATA E FIRMATA.";
+                popup.style.display = 'block';
+            } else if (['ATTIVAZIONE LUCE', 'ATTIVAZIONE GAS', 'ATTIVAZIONE DUAL'].includes(selected)) {
+                popupMessage.textContent = "PER QUESTA PRATICA BISOGNA ALLEGARE CARTA IDENTITÀ FRONTE E RETRO, DICHIARAZIONE TITOLO OCCUPAZIONALE E DICHIARAZIONE REGOLARITÀ EDILIZIA COMPILATE E FIRMATE.";
+                popup.style.display = 'block';
+            }
+        });
+
+        pagamento.addEventListener('change', () => {
+            const ibanField = document.getElementById('ibanField');
+            ibanField.classList.toggle('hidden', pagamento.value !== 'IBAN');
+        });
+
+        function closePopup() {
+            popup.style.display = 'none';
+        }
+
+        function sendViaWhatsApp() {
+            const message = prepareMessage();
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function sendViaMail() {
+            const message = prepareMessage();
+            const mailtoUrl = `mailto:m.isernia@a2retail.it?subject=Richiesta di Inserimento&body=${encodeURIComponent(message)}`;
+            window.open(mailtoUrl, '_blank');
+        }
+
+        function prepareMessage() {
+            let message = "CIAO, TI CHIEDO DI INSERIRE QUESTA PRATICA E DI DARMI CONFERMA INSERIMENTO. GRAZIE\n\n";
+            const fields = Array.from(document.querySelectorAll('input, select')).filter(field => field.value);
+            fields.forEach(field => {
+                message += `${field.previousElementSibling?.textContent || field.name}: ${field.value}\n`;
+            });
+            return message;
+        }
+    </script>
+</body>
+</html>
