@@ -5,51 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRM CONTRATTI A2A</title>
     <style>
+        /* Generale */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f9;
+            background-color: #eef2f7;
             display: flex;
             justify-content: center;
             align-items: flex-start;
             min-height: 100vh;
             padding: 20px;
         }
+
         .container {
             background-color: #ffffff;
-            border: 1px solid #ddd;
             border-radius: 10px;
-            padding: 30px;
             width: 100%;
             max-width: 900px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
         }
-        h1 {
+
+        .header {
+            background-color: #007BFF;
+            color: white;
             text-align: center;
-            color: #333;
-            margin-bottom: 20px;
+            padding: 20px;
             font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
+
         form {
+            padding: 30px;
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
+
         label {
             font-weight: bold;
             margin-bottom: 5px;
-            display: block;
+            color: #333;
         }
+
         input, select {
             width: 100%;
-            padding: 15px; /* Maggiore padding per i menu a tendina */
+            padding: 15px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            font-size: 16px; /* Font più grande per leggibilità */
-            line-height: 1.5; /* Migliorata l'altezza della linea */
+            font-size: 16px;
             box-sizing: border-box;
         }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007BFF;
+        }
+
         button {
             padding: 12px;
             width: 100%;
@@ -64,18 +78,22 @@
             text-align: center;
             margin: auto;
         }
+
         button:hover {
             background-color: #0056b3;
         }
+
         .button-row {
             display: flex;
             justify-content: center;
             gap: 3cm;
             flex-wrap: wrap;
         }
+
         .hidden {
             display: none;
         }
+
         #popup {
             position: fixed;
             top: 50%;
@@ -92,11 +110,13 @@
             display: none;
             z-index: 1000;
         }
+
         #popup p {
             margin-bottom: 20px;
             color: #333;
             font-size: 14px;
         }
+
         #popup button {
             background-color: #007BFF;
             color: white;
@@ -106,14 +126,13 @@
             cursor: pointer;
             font-size: 14px;
         }
+
         #popup button:hover {
             background-color: #0056b3;
         }
+
         /* Responsive Styles */
         @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
             .button-row {
                 flex-direction: column;
                 gap: 20px;
@@ -123,19 +142,19 @@
                 max-width: none;
             }
             #popup {
-                width: 80%; /* Ridimensionamento popup */
-                padding: 15px; /* Minore padding per schermi piccoli */
-                font-size: 14px; /* Font ridotto nel popup */
+                width: 80%;
+                padding: 15px;
+                font-size: 14px;
             }
             #popup button {
-                padding: 8px 15px; /* Ridotto il padding del pulsante */
+                padding: 8px 15px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1><strong>CRM CONTRATTI A2A</strong></h1>
+        <div class="header">CRM CONTRATTI A2A</div>
         <form id="leadForm">
             <label for="tipoCliente">Tipo cliente:</label>
             <select id="tipoCliente" name="tipoCliente" required>
