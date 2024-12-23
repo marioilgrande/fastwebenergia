@@ -237,6 +237,17 @@
                         <option value="C3">C3</option>
                     </select>
                 </div>
+
+                <label for="pagamento">Metodo di pagamento:</label>
+                <select id="pagamento" name="pagamento">
+                    <option value="">Seleziona...</option>
+                    <option value="IBAN">IBAN</option>
+                    <option value="BOLLETTINO">BOLLETTINO</option>
+                </select>
+                <div id="ibanField" class="hidden">
+                    <label for="codiceIban">Codice IBAN:</label>
+                    <input type="text" id="codiceIban" name="codiceIban">
+                </div>
             </div>
 
             <div class="button-row">
@@ -264,6 +275,8 @@
         const tipoOffertaLuceField = document.getElementById('tipoOffertaLuceField');
         const tipoOffertaGasField = document.getElementById('tipoOffertaGasField');
         const tipoOffertaLuce = document.getElementById('tipoOffertaLuce');
+        const pagamento = document.getElementById('pagamento');
+        const ibanField = document.getElementById('ibanField');
 
         tipoCliente.addEventListener('change', () => {
             const isBusiness = tipoCliente.value === 'BUSINESS';
@@ -301,7 +314,6 @@
         });
 
         pagamento.addEventListener('change', () => {
-            const ibanField = document.getElementById('ibanField');
             ibanField.classList.toggle('hidden', pagamento.value !== 'IBAN');
         });
 
