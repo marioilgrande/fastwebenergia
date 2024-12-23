@@ -211,13 +211,15 @@
                 <label for="mail">Mail:</label>
                 <input type="email" id="mail" name="mail">
 
-                <label for="tipoOffertaLuce">Tipo Offerta Luce:</label>
-                <select id="tipoOffertaLuce" name="tipoOffertaLuce" class="hidden">
-                    <option value="">Seleziona...</option>
-                    <option value="SMART CASA LUCE">SMART CASA LUCE</option>
-                    <option value="SMART CASA LUCE+">SMART CASA LUCE+</option>
-                    <option value="NOI2">NOI2</option>
-                </select>
+                <div id="tipoOffertaLuceField" class="hidden">
+                    <label for="tipoOffertaLuce">Tipo Offerta Luce:</label>
+                    <select id="tipoOffertaLuce" name="tipoOffertaLuce">
+                        <option value="">Seleziona...</option>
+                        <option value="SMART CASA LUCE">SMART CASA LUCE</option>
+                        <option value="SMART CASA LUCE+">SMART CASA LUCE+</option>
+                        <option value="NOI2" class="hidden">NOI2</option>
+                    </select>
+                </div>
 
                 <div id="tipoOffertaGasField" class="hidden">
                     <label for="tipoOffertaGas">Tipo Offerta Gas:</label>
@@ -230,9 +232,9 @@
                     <label for="categoriaUso">Categoria d'Uso:</label>
                     <select id="categoriaUso" name="categoriaUso">
                         <option value="">Seleziona...</option>
-                        <option value="C1">C1 - Riscaldamento</option>
-                        <option value="C2">C2 - Cottura cibi + acqua calda</option>
-                        <option value="C3">C3 - Rscaldamento + Cottura cibi + acqua calda</option>
+                        <option value="C1">C1</option>
+                        <option value="C2">C2</option>
+                        <option value="C3">C3</option>
                     </select>
                 </div>
             </div>
@@ -259,9 +261,9 @@
         const pdrField = document.getElementById('pdrField');
         const popup = document.getElementById('popup');
         const popupMessage = document.getElementById('popupMessage');
-
-        const tipoOffertaLuce = document.getElementById('tipoOffertaLuce');
+        const tipoOffertaLuceField = document.getElementById('tipoOffertaLuceField');
         const tipoOffertaGasField = document.getElementById('tipoOffertaGasField');
+        const tipoOffertaLuce = document.getElementById('tipoOffertaLuce');
 
         tipoCliente.addEventListener('change', () => {
             const isBusiness = tipoCliente.value === 'BUSINESS';
@@ -275,8 +277,19 @@
             podField.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
             pdrField.classList.toggle('hidden', !selected.includes('GAS') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
 
-            tipoOffertaLuce.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
+            tipoOffertaLuceField.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
             tipoOffertaGasField.classList.toggle('hidden', !selected.includes('GAS') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
+
+            // Gestione NOI2
+            const noi2Option = document.querySelector("#tipoOffertaLuce option[value='NOI2']");
+            if (selected === 'SWITCH LUCE' || selected === 'SWITCH DUAL') {
+                noi2Option.classList.remove('hidden');
+            } else {
+                noi2Option.classList.add('hidden');
+                if (tipoOffertaLuce.value === 'NOI2') {
+                    tipoOffertaLuce.value = ''; // Reset selezione NOI2 se non valida
+                }
+            }
 
             if (selected === 'VOLTURA LUCE') {
                 popupMessage.textContent = "PER QUESTA PRATICA BISOGNA ALLEGARE CARTA IDENTITÀ FRONTE E RETRO E DICHIARAZIONE TITOLO OCCUPAZIONALE COMPILATA E FIRMATA.";
@@ -285,6 +298,11 @@
                 popupMessage.textContent = "PER QUESTA PRATICA BISOGNA ALLEGARE CARTA IDENTITÀ FRONTE E RETRO, DICHIARAZIONE TITOLO OCCUPAZIONALE E DICHIARAZIONE REGOLARITÀ EDILIZIA COMPILATE E FIRMATE.";
                 popup.style.display = 'block';
             }
+        });
+
+        pagamento.addEventListener('change', () => {
+            const ibanField = document.getElementById('ibanField');
+            ibanField.classList.toggle('hidden', pagamento.value !== 'IBAN');
         });
 
         function closePopup() {
