@@ -275,13 +275,38 @@
         const tipoOffertaLuceField = document.getElementById('tipoOffertaLuceField');
         const tipoOffertaGasField = document.getElementById('tipoOffertaGasField');
         const tipoOffertaLuce = document.getElementById('tipoOffertaLuce');
+        const tipoOffertaGas = document.getElementById('tipoOffertaGas');
         const pagamento = document.getElementById('pagamento');
         const ibanField = document.getElementById('ibanField');
 
         tipoCliente.addEventListener('change', () => {
             const isBusiness = tipoCliente.value === 'BUSINESS';
             businessFields.classList.toggle('hidden', !isBusiness);
-            dynamicFields.classList.add('hidden');
+
+            if (isBusiness) {
+                tipoOffertaLuce.innerHTML = `
+                    <option value="">Seleziona...</option>
+                    <option value="SMART BUSINESS LUCE">SMART BUSINESS LUCE</option>
+                    <option value="SMART BUSINESS LUCE+">SMART BUSINESS LUCE+</option>
+                `;
+                tipoOffertaGas.innerHTML = `
+                    <option value="">Seleziona...</option>
+                    <option value="SMART BUSINESS GAS">SMART BUSINESS GAS</option>
+                    <option value="SMART BUSINESS GAS+">SMART BUSINESS GAS+</option>
+                `;
+            } else {
+                tipoOffertaLuce.innerHTML = `
+                    <option value="">Seleziona...</option>
+                    <option value="SMART CASA LUCE">SMART CASA LUCE</option>
+                    <option value="SMART CASA LUCE+">SMART CASA LUCE+</option>
+                    <option value="NOI2">NOI2</option>
+                `;
+                tipoOffertaGas.innerHTML = `
+                    <option value="">Seleziona...</option>
+                    <option value="SMART CASA GAS">SMART CASA GAS</option>
+                    <option value="SMART CASA GAS+">SMART CASA GAS+</option>
+                `;
+            }
         });
 
         tipoContratto.addEventListener('change', () => {
@@ -293,14 +318,13 @@
             tipoOffertaLuceField.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
             tipoOffertaGasField.classList.toggle('hidden', !selected.includes('GAS') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
 
-            // Gestione NOI2
             const noi2Option = document.querySelector("#tipoOffertaLuce option[value='NOI2']");
             if (selected === 'SWITCH LUCE' || selected === 'SWITCH DUAL') {
                 noi2Option.classList.remove('hidden');
             } else {
                 noi2Option.classList.add('hidden');
                 if (tipoOffertaLuce.value === 'NOI2') {
-                    tipoOffertaLuce.value = ''; // Reset selezione NOI2 se non valida
+                    tipoOffertaLuce.value = '';
                 }
             }
 
@@ -328,8 +352,11 @@
         }
 
         function sendViaMail() {
+            const nomeCognome = document.getElementById('nomeCognome').value;
+            const ragioneSociale = document.getElementById('ragioneSociale').value;
+            const subject = `Richiesta di Inserimento - ${nomeCognome || ragioneSociale}`;
             const message = prepareMessage();
-            const mailtoUrl = `mailto:m.isernia@a2retail.it?subject=Richiesta di Inserimento&body=${encodeURIComponent(message)}`;
+            const mailtoUrl = `mailto:m.isernia@a2retail.it?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
             window.open(mailtoUrl, '_blank');
         }
 
