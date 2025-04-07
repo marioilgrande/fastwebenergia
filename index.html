@@ -2,7 +2,8 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Aggiunta di maximum-scale per evitare zoom automatico -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Comparatore Offerte Fastweb Energia</title>
   <!-- Includiamo jsPDF da CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -58,6 +59,7 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
+    /* Impostiamo font-size 16px per input e select per evitare zoom su smartphone */
     form input, form select {
       width: 100%;
       padding: 8px;
@@ -65,6 +67,7 @@
       border: 1px solid #ccc;
       border-radius: 3px;
       box-sizing: border-box;
+      font-size: 16px;
     }
     /* Checkbox per cliente Fastweb */
     #clienteFastwebLabel {
@@ -132,7 +135,7 @@
       padding: 15px;
       margin-bottom: 20px;
       border-radius: 5px;
-      background-color: #fafafa; /* verrà aggiornato dinamicamente */
+      background-color: #fafafa; /* verrà impostato dinamicamente */
     }
     .detail {
       margin-left: 15px;
@@ -155,10 +158,11 @@
       font-size: 16px;
       padding: 12px 24px;
     }
-    /* Tabella riepilogo offerte: condizioni standard */
+    /* Tabella riepilogo offerte: condizione standard */
     #riepilogoOfferte {
       margin-top: 20px;
       display: none;
+      overflow-x: auto;
     }
     #riepilogoOfferte table {
       width: 100%;
@@ -185,6 +189,16 @@
       margin-top: 20px;
       display: block;
       width: 100%;
+    }
+    
+    /* Media query per smartphone */
+    @media screen and (max-width: 600px) {
+      form input, form select {
+        font-size: 16px;
+      }
+      #riepilogoOfferte table, #riepilogoOfferte th, #riepilogoOfferte td {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
@@ -236,7 +250,7 @@
   </div>
 
   <script>
-    /* --- Generazione dinamica dei checkbox dei mesi --- */
+    // Generazione dinamica dei checkbox dei mesi
     var punData = [
       { month: "gen-25", value: 0.14303 },
       { month: "feb-25", value: 0.15037 },
@@ -260,7 +274,7 @@
       periodoContainer.appendChild(label);
     });
 
-    /* --- Funzioni per invio WhatsApp --- */
+    // Funzione per invio WhatsApp
     function sendWhatsApp(offerType) {
       var text = "";
       if (offerType === "canone") {
@@ -273,7 +287,7 @@
       window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
     }
 
-    /* --- Funzione per generare il PDF voucher tramite jsPDF --- */
+    // Funzione per generare il PDF voucher tramite jsPDF
     function printOfferPdf(offerType) {
       let voucherText = "";
       if (offerType === "canone") {
@@ -286,7 +300,7 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       
-      // Definisce l'area di testo: bordo di 10 mm da ogni lato, area alta 100 mm
+      // Definisce l'area di testo: bordo di 10 mm, area alta 100 mm (10 cm)
       const borderX = 10, borderY = 10, borderW = 190, borderH = 100;
       doc.setDrawColor(0, 0, 0);
       doc.rect(borderX, borderY, borderW, borderH);
@@ -340,12 +354,12 @@
       doc.save("Voucher_" + offerType.toUpperCase() + ".pdf");
     }
 
-    // Variabili globali per i testi WhatsApp di ogni offerta
+    // Variabili globali per i testi WhatsApp
     var whatsappTextCanone = "";
     var whatsappTextFIX = "";
     var whatsappTextFLEX = "";
 
-    /* --- Funzione per generare il riepilogo offerte (condizioni standard) --- */
+    // Funzione per generare il riepilogo offerte (condizioni standard)
     function generateRiepilogoTable() {
       let html = "<table><thead><tr>" +
                  "<th>Tipo Offerta</th>" +
@@ -372,14 +386,14 @@
               "</table>" +
               "</td></tr>";
       // Offerta FIX
-      html += "<tr><td>FIX</td><td>Costo fisso: €13/mese + Energia: €0,193 per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      html += "<tr><td>FIX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb) + Energia: €0,193 per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
       // Offerta FLEX
-      html += "<tr><td>FLEX</td><td>Costo fisso: €13/mese + Energia: (PUN + €0,04) per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      html += "<tr><td>FLEX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb) + Energia: (PUN + €0,04) per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
       html += "</tbody></table>";
       return html;
     }
 
-    /* --- Funzione per togglare il riepilogo offerte --- */
+    // Funzione per togglare il riepilogo offerte
     function toggleRiepilogo() {
       var riepilogo = document.getElementById("riepilogoOfferte");
       if (riepilogo.style.display === "none" || riepilogo.style.display === "") {
@@ -390,7 +404,7 @@
       }
     }
 
-    /* --- Calcolo e comparazione delle offerte --- */
+    // Calcolo e comparazione delle offerte
     document.getElementById("bollettaForm").addEventListener("submit", function(event) {
       event.preventDefault();
       var nome = document.getElementById("nome").value;
@@ -414,7 +428,6 @@
       
       /* --- Offerta FIX --- */
       var fixedCostFIX = isClienteFastweb ? 3 * numMesi : 13 * numMesi;
-      // Aggiungiamo DISPACCIAMENTO: €0,011 per kWh
       var energyCostFIX = kwFatturati * (0.193 + 0.011);
       var offFIX = fixedCostFIX + energyCostFIX;
       
@@ -434,13 +447,11 @@
       var compLIGHT = computeTierComponents(consumoAnnuo, 1500, (potenza === 3 ? 50 : (potenza === 4.5 ? 55 : 60)));
       var compFULL  = computeTierComponents(consumoAnnuo, 2500, (potenza === 3 ? 70 : (potenza === 4.5 ? 75 : 80)));
       var compMAXI  = computeTierComponents(consumoAnnuo, 4000, (potenza === 3 ? 100 : (potenza === 4.5 ? 105 : 110)));
-      
       var defaultTier = "";
       if (consumoAnnuo <= 1500) { defaultTier = "LIGHT"; }
       else if (consumoAnnuo <= 2500) { defaultTier = "FULL"; }
       else if (consumoAnnuo <= 4000) { defaultTier = "MAXI"; }
       else { defaultTier = "Business"; }
-      
       var offCanoneFisso = 0;
       var bestTier = "";
       var compUsed = null;
@@ -513,7 +524,7 @@
       // Offerta FIX
       var resultFIX = "";
       resultFIX += "<h3>Offerta FIX</h3>";
-      var fixedCostTextFIX = (fixedCostFIX).toFixed(2);
+      var fixedCostTextFIX = fixedCostFIX.toFixed(2);
       var energyCostTextFIX = energyCostFIX.toFixed(2);
       resultFIX += "<p><strong>Dettaglio Offerta:</strong></p>";
       resultFIX += "<div class='detail'>- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "<br>";
@@ -529,7 +540,7 @@
       // Offerta FLEX
       var resultFLEX = "";
       resultFLEX += "<h3>Offerta FLEX</h3>";
-      var fixedCostTextFLEX = (fixedCostFLEX).toFixed(2);
+      var fixedCostTextFLEX = fixedCostFLEX.toFixed(2);
       var energyCostTextFLEX = energyCostFLEX.toFixed(2);
       resultFLEX += "<p><strong>Dettaglio Offerta:</strong></p>";
       resultFLEX += "<div class='detail'>- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "<br>";
@@ -550,7 +561,7 @@
                        "<div class='offerResult' id='resultFLEX' style='background-color: " + bgColorFLEX + ";'>" + resultFLEX + "</div>";
       document.getElementById("risultato").innerHTML = fullResult;
       
-      /* --- Riepilogo Offerte: condizioni standard per tutte le offerte --- */
+      /* --- Genera riepilogo offerte (condizioni standard per tutte le offerte) --- */
       let riepilogoHTML = "<table><thead><tr>" +
                           "<th>Tipo Offerta</th>" +
                           "<th>Condizioni</th></tr></thead><tbody>";
@@ -574,12 +585,8 @@
                       "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
                       "</table>" +
                       "</td></tr>";
-      riepilogoHTML += "<tr><td>FIX</td><td>Costo fisso: €13/mese" +
-                      " " + "(o €3/mese se Cliente Fastweb)" +
-                      " + Energia: €0,193 per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
-      riepilogoHTML += "<tr><td>FLEX</td><td>Costo fisso: €13/mese" +
-                      " " + "(o €3/mese se Cliente Fastweb)" +
-                      " + Energia: (PUN + €0,04) per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      riepilogoHTML += "<tr><td>FIX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb) + Energia: €0,193 per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      riepilogoHTML += "<tr><td>FLEX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb) + Energia: (PUN + €0,04) per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
       riepilogoHTML += "</tbody></table>";
       document.getElementById("riepilogoOfferte").innerHTML = riepilogoHTML;
       
