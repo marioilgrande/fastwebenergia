@@ -1,373 +1,631 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRM CONTRATTI A2A</title>
-    <style>
-        /* Generale */
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #eef2f7;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            background-color: #ffffff;
-            border-radius: 10px;
-            width: 100%;
-            max-width: 900px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-        }
-
-        .header {
-            background-color: #007BFF;
-            color: white;
-            text-align: center;
-            padding: 20px;
-            font-size: 24px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-
-        form {
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: #007BFF;
-        }
-
-        button {
-            padding: 12px;
-            width: 100%;
-            max-width: 200px;
-            height: 50px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            text-align: center;
-            margin: auto;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .button-row {
-            display: flex;
-            justify-content: center;
-            gap: 3cm;
-            flex-wrap: wrap;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        #popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 400px;
-            background-color: white;
-            border: 2px solid #007BFF;
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            display: none;
-            z-index: 1000;
-        }
-
-        #popup p {
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 14px;
-        }
-
-        #popup button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        #popup button:hover {
-            background-color: #0056b3;
-        }
-
-        /* Responsive Styles */
-        @media (max-width: 768px) {
-            .button-row {
-                flex-direction: column;
-                gap: 20px;
-            }
-            button {
-                width: 100%;
-                max-width: none;
-            }
-            #popup {
-                width: 80%;
-                padding: 15px;
-                font-size: 14px;
-            }
-            #popup button {
-                padding: 8px 15px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comparatore Offerte Fastweb Energia</title>
+  <!-- Includiamo jsPDF da CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --main-color: #F4BE00;
+      --whatsapp-color: #47C355;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+    header {
+      text-align: center;
+      padding: 20px;
+      background-color: var(--main-color);
+      color: #fff;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    /* Banner con titolo su due righe */
+    header h1 {
+      font-size: 24px;
+      line-height: 1.2;
+    }
+    header h1 span {
+      display: block;
+    }
+    h1, h2, h3 {
+      margin: 0;
+      padding-bottom: 10px;
+    }
+    section {
+      margin-top: 30px;
+    }
+    form {
+      background-color: #f9f9f9;
+      border: 1px solid var(--main-color);
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    form label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    form input, form select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+    /* Checkbox per cliente Fastweb */
+    #clienteFastwebLabel {
+      display: block;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+    /* Griglia per i checkbox dei mesi in 3 colonne */
+    #periodoCheckboxes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    #periodoCheckboxes label {
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.95em;
+    }
+    /* Checkbox personalizzati a cerchio */
+    input[type="checkbox"] {
+      -webkit-appearance: none;
+         -moz-appearance: none;
+              appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--main-color);
+      border-radius: 50%;
+      cursor: pointer;
+      position: relative;
+      margin: 0 5px 0 0;
+    }
+    input[type="checkbox"]:checked::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 10px;
+      height: 10px;
+      background-color: var(--main-color);
+      border-radius: 50%;
+    }
+    form button {
+      background-color: var(--main-color);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    .whatsappBtn {
+      background-color: var(--whatsapp-color);
+    }
+    form button:hover {
+      opacity: 0.9;
+    }
+    #risultato {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    /* Risultati Offerte */
+    .offerResult {
+      border: 1px solid #ccc;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      background-color: #fafafa; /* verrà aggiornato dinamicamente */
+    }
+    .detail {
+      margin-left: 15px;
+      font-size: 0.95em;
+    }
+    .savings {
+      padding: 10px;
+      border-radius: 5px;
+      color: #000;
+      font-weight: bold;
+      margin-top: 10px;
+      display: inline-block;
+    }
+    .green { background-color: #d4f4d4; }
+    .red { background-color: #f4d4d4; }
+    .offerActions {
+      margin-top: 15px;
+    }
+    .offerActions button {
+      font-size: 16px;
+      padding: 12px 24px;
+    }
+    /* Tabella riepilogo offerte: condizioni standard */
+    #riepilogoOfferte {
+      margin-top: 20px;
+      display: none;
+    }
+    #riepilogoOfferte table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    #riepilogoOfferte th, #riepilogoOfferte td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    #riepilogoOfferte th {
+      background-color: var(--main-color);
+      color: #fff;
+    }
+    /* Bottone per visionare il riepilogo */
+    #toggleRiepilogoBtn {
+      background-color: var(--main-color);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+      display: block;
+      width: 100%;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">CRM CONTRATTI A2A</div>
-        <form id="leadForm">
-            <label for="tipoCliente">Tipo cliente:</label>
-            <select id="tipoCliente" name="tipoCliente" required>
-                <option value="">Seleziona...</option>
-                <option value="DOMESTICO">DOMESTICO</option>
-                <option value="BUSINESS">BUSINESS/CONDOMINIO</option>
-            </select>
+  <div class="container">
+    <header>
+      <h1>
+        <span>COMPARATORE OFFERTE</span>
+        <span>FASTWEB ENERGIA</span>
+      </h1>
+    </header>
 
-            <div id="businessFields" class="hidden">
-                <label for="ragioneSociale">Ragione Sociale:</label>
-                <input type="text" id="ragioneSociale" name="ragioneSociale">
-                <label for="partitaIva">Partita IVA:</label>
-                <input type="text" id="partitaIva" name="partitaIva">
-            </div>
+    <section id="datiBolletta">
+      <h2>Analisi Bolletta</h2>
+      <form id="bollettaForm">
+        <label for="nome">Nome e Cognome Cliente:</label>
+        <input type="text" id="nome" name="nome" required>
 
-            <label for="tipoContratto">Tipo contratto:</label>
-            <select id="tipoContratto" name="tipoContratto">
-                <option value="">Seleziona...</option>
-                <option value="SWITCH LUCE">SWITCH LUCE</option>
-                <option value="SWITCH GAS">SWITCH GAS</option>
-                <option value="SWITCH DUAL">SWITCH DUAL</option>
-                <option value="VOLTURA LUCE">VOLTURA LUCE</option>
-                <option value="ATTIVAZIONE LUCE">ATTIVAZIONE LUCE</option>
-                <option value="ATTIVAZIONE GAS">ATTIVAZIONE GAS</option>
-                <option value="ATTIVAZIONE DUAL">ATTIVAZIONE DUAL</option>
-            </select>
+        <label>Periodo di Fatturazione (seleziona i mesi):</label>
+        <div id="periodoCheckboxes"></div>
 
-            <div id="dynamicFields" class="hidden">
-                <label for="nomeCognome">Nome e cognome:</label>
-                <input type="text" id="nomeCognome" name="nomeCognome">
+        <label for="kwFatturati">kW Fatturati (consumo del periodo in kWh):</label>
+        <input type="number" id="kwFatturati" name="kwFatturati" required>
 
-                <label for="codiceFiscale">Codice fiscale:</label>
-                <input type="text" id="codiceFiscale" name="codiceFiscale">
+        <label for="consumoAnnuo">Consumo Annuo (kWh):</label>
+        <input type="number" id="consumoAnnuo" name="consumoAnnuo" required>
 
-                <div id="podField" class="hidden">
-                    <label for="pod">POD:</label>
-                    <input type="text" id="pod" name="pod">
-                </div>
+        <label for="potenza">Potenza Contatore (kWh):</label>
+        <select id="potenza" name="potenza" required>
+          <option value="3">3 kWh</option>
+          <option value="4.5">4.5 kWh</option>
+          <option value="6">6 kWh</option>
+        </select>
 
-                <div id="pdrField" class="hidden">
-                    <label for="pdr">PDR:</label>
-                    <input type="text" id="pdr" name="pdr">
-                </div>
+        <label for="spesaEnergia">Spesa Materia Energia (€):</label>
+        <input type="number" id="spesaEnergia" name="spesaEnergia" step="0.01" required>
 
-                <label for="indirizzo">Indirizzo:</label>
-                <input type="text" id="indirizzo" name="indirizzo">
+        <label for="totaleBolletta">Totale Bolletta (€):</label>
+        <input type="number" id="totaleBolletta" name="totaleBolletta" step="0.01" required>
 
-                <label for="citta">Città:</label>
-                <input type="text" id="citta" name="citta">
+        <label id="clienteFastwebLabel"><input type="checkbox" id="clienteFastweb" name="clienteFastweb"> Cliente Fastweb</label>
 
-                <label for="telefono">Telefono:</label>
-                <input type="tel" id="telefono" name="telefono">
+        <button type="submit">Analizza Bolletta</button>
+      </form>
+      <div id="risultato"></div>
+      <button id="toggleRiepilogoBtn" onclick="toggleRiepilogo()">Visiona riepilogo offerte</button>
+      <div id="riepilogoOfferte"></div>
+    </section>
+  </div>
 
-                <label for="mail">Mail:</label>
-                <input type="email" id="mail" name="mail">
+  <script>
+    /* --- Generazione dinamica dei checkbox dei mesi --- */
+    var punData = [
+      { month: "gen-25", value: 0.14303 },
+      { month: "feb-25", value: 0.15037 },
+      { month: "mar-25", value: 0.12055 },
+      { month: "dic-24", value: 0.13507 },
+      { month: "nov-24", value: 0.13089 },
+      { month: "ott-24", value: 0.11669 },
+      { month: "set-24", value: 0.11713 },
+      { month: "ago-24", value: 0.12844 }
+    ];
+    var periodoContainer = document.getElementById("periodoCheckboxes");
+    punData.forEach(function(item) {
+      var label = document.createElement("label");
+      label.title = "PUN: " + item.value + " €/kWh";
+      var checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.name = "mese";
+      checkbox.value = item.month;
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(" " + item.month));
+      periodoContainer.appendChild(label);
+    });
 
-                <div id="tipoOffertaLuceField" class="hidden">
-                    <label for="tipoOffertaLuce">Tipo Offerta Luce:</label>
-                    <select id="tipoOffertaLuce" name="tipoOffertaLuce">
-                        <option value="">Seleziona...</option>
-                        <option value="SMART CASA LUCE">SMART CASA LUCE</option>
-                        <option value="SMART CASA LUCE+">SMART CASA LUCE+</option>
-                        <option value="NOI2" class="hidden">NOI2</option>
-                    </select>
-                </div>
+    /* --- Funzioni per invio WhatsApp --- */
+    function sendWhatsApp(offerType) {
+      var text = "";
+      if (offerType === "canone") {
+        text = whatsappTextCanone;
+      } else if (offerType === "fix") {
+        text = whatsappTextFIX;
+      } else if (offerType === "flex") {
+        text = whatsappTextFLEX;
+      }
+      window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+    }
 
-                <div id="tipoOffertaGasField" class="hidden">
-                    <label for="tipoOffertaGas">Tipo Offerta Gas:</label>
-                    <select id="tipoOffertaGas" name="tipoOffertaGas">
-                        <option value="">Seleziona...</option>
-                        <option value="SMART CASA GAS">SMART CASA GAS</option>
-                        <option value="SMART CASA GAS+">SMART CASA GAS+</option>
-                    </select>
+    /* --- Funzione per generare il PDF voucher tramite jsPDF --- */
+    function printOfferPdf(offerType) {
+      let voucherText = "";
+      if (offerType === "canone") {
+        voucherText = whatsappTextCanone;
+      } else if (offerType === "fix") {
+        voucherText = whatsappTextFIX;
+      } else if (offerType === "flex") {
+        voucherText = whatsappTextFLEX;
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      
+      // Definisce l'area di testo: bordo di 10 mm da ogni lato, area alta 100 mm
+      const borderX = 10, borderY = 10, borderW = 190, borderH = 100;
+      doc.setDrawColor(0, 0, 0);
+      doc.rect(borderX, borderY, borderW, borderH);
+      
+      // Split del testo voucher in linee
+      let lines = voucherText.split("\n");
+      let y = borderY + 10;
+      
+      // Tratta il titolo se la prima riga inizia con "----"
+      let title = "";
+      if (lines[0].startsWith("----")) {
+        title = lines.shift();
+      }
+      if (title !== "") {
+        doc.setFontSize(20);
+        doc.setTextColor(244, 190, 0);
+        doc.setFont("helvetica", "bold");
+        let titleWidth = doc.getTextWidth(title);
+        let titleX = borderX + (borderW - titleWidth) / 2;
+        doc.text(title, titleX, y);
+        y += 15;
+      }
+      
+      // Imposta il font per il resto del testo
+      let initialFontSize = 9;
+      doc.setFontSize(initialFontSize);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      let lineSpacing = 4;
+      if (lines.length * lineSpacing > borderH - 20) {
+        let newFontSize = initialFontSize * ((borderH - 20) / (lines.length * lineSpacing));
+        doc.setFontSize(newFontSize);
+        lineSpacing = newFontSize * 0.5 + 2;
+      }
+      
+      lines.forEach((line) => {
+          if (line.toUpperCase().includes("FASTWEB")) {
+              doc.setTextColor(244, 190, 0);
+              doc.setFont("helvetica", "bold");
+          } else {
+              doc.setTextColor(0, 0, 0);
+              doc.setFont("helvetica", "normal");
+          }
+          let splitLine = doc.splitTextToSize(line, borderW - 10);
+          if (y + splitLine.length * lineSpacing > borderY + borderH - 5) {
+              y = borderY + borderH - splitLine.length * lineSpacing - 5;
+          }
+          doc.text(splitLine, borderX + 5, y);
+          y += splitLine.length * lineSpacing;
+      });
+      doc.save("Voucher_" + offerType.toUpperCase() + ".pdf");
+    }
 
-                    <label for="categoriaUso">Categoria d'Uso:</label>
-                    <select id="categoriaUso" name="categoriaUso">
-                        <option value="">Seleziona...</option>
-                        <option value="C1">C1 - Riscaldamento</option>
-                        <option value="C2">C2 - Cottura cibi + Acqua calda</option>
-                        <option value="C3">C3 - Riscaldamento + Cottura cibi + Acqua calda</option>
-                    </select>
-                </div>
+    // Variabili globali per i testi WhatsApp di ogni offerta
+    var whatsappTextCanone = "";
+    var whatsappTextFIX = "";
+    var whatsappTextFLEX = "";
 
-                <label for="pagamento">Metodo di pagamento:</label>
-                <select id="pagamento" name="pagamento">
-                    <option value="">Seleziona...</option>
-                    <option value="IBAN">IBAN</option>
-                    <option value="BOLLETTINO">BOLLETTINO</option>
-                </select>
-                <div id="ibanField" class="hidden">
-                    <label for="codiceIban">Codice IBAN:</label>
-                    <input type="text" id="codiceIban" name="codiceIban">
-                </div>
-            </div>
+    /* --- Funzione per generare il riepilogo offerte (condizioni standard) --- */
+    function generateRiepilogoTable() {
+      let html = "<table><thead><tr>" +
+                 "<th>Tipo Offerta</th>" +
+                 "<th>Condizioni</th></tr></thead><tbody>";
+      // Offerta CANONE FISSO: tabella nidificata per LIGHT, FULL e MAXI
+      html += "<tr><td>Canone Fisso (Fasce)</td><td>" +
+              "<table style='width:100%; border-collapse:collapse;'>" +
+              "<tr><th style='border:1px solid #ccc; padding:4px;'>Fascia</th>" +
+              "<th style='border:1px solid #ccc; padding:4px;'>Soglia (kWh/anno)</th>" +
+              "<th style='border:1px solid #ccc; padding:4px;'>Costo Base (3kW/4.5kW/6kW)</th>" +
+              "<th style='border:1px solid #ccc; padding:4px;'>Extra (€/kWh/mese)</th></tr>" +
+              "<tr><td style='border:1px solid #ccc; padding:4px;'>LIGHT</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>1.500</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>€50 / €55 / €60</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
+              "<tr><td style='border:1px solid #ccc; padding:4px;'>FULL</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>2.500</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>€70 / €75 / €80</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
+              "<tr><td style='border:1px solid #ccc; padding:4px;'>MAXI</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>4.000</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>€100 / €105 / €110</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
+              "</table>" +
+              "</td></tr>";
+      // Offerta FIX
+      html += "<tr><td>FIX</td><td>Costo fisso: €13/mese + Energia: €0,193 per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      // Offerta FLEX
+      html += "<tr><td>FLEX</td><td>Costo fisso: €13/mese + Energia: (PUN + €0,04) per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      html += "</tbody></table>";
+      return html;
+    }
 
-            <div class="button-row">
-                <button type="button" onclick="sendViaWhatsApp()">Invia su WhatsApp</button>
-                <button type="button" onclick="sendViaMail()">Invia via Mail</button>
-            </div>
-        </form>
-    </div>
+    /* --- Funzione per togglare il riepilogo offerte --- */
+    function toggleRiepilogo() {
+      var riepilogo = document.getElementById("riepilogoOfferte");
+      if (riepilogo.style.display === "none" || riepilogo.style.display === "") {
+        riepilogo.innerHTML = generateRiepilogoTable();
+        riepilogo.style.display = "block";
+      } else {
+        riepilogo.style.display = "none";
+      }
+    }
 
-    <!-- Popup -->
-    <div id="popup">
-        <p id="popupMessage"></p>
-        <button onclick="closePopup()">Ho capito</button>
-    </div>
-
-    <script>
-        const tipoCliente = document.getElementById('tipoCliente');
-        const tipoContratto = document.getElementById('tipoContratto');
-        const dynamicFields = document.getElementById('dynamicFields');
-        const businessFields = document.getElementById('businessFields');
-        const podField = document.getElementById('podField');
-        const pdrField = document.getElementById('pdrField');
-        const popup = document.getElementById('popup');
-        const popupMessage = document.getElementById('popupMessage');
-        const tipoOffertaLuceField = document.getElementById('tipoOffertaLuceField');
-        const tipoOffertaGasField = document.getElementById('tipoOffertaGasField');
-        const tipoOffertaLuce = document.getElementById('tipoOffertaLuce');
-        const tipoOffertaGas = document.getElementById('tipoOffertaGas');
-        const pagamento = document.getElementById('pagamento');
-        const ibanField = document.getElementById('ibanField');
-
-        tipoCliente.addEventListener('change', () => {
-            const isBusiness = tipoCliente.value === 'BUSINESS';
-            businessFields.classList.toggle('hidden', !isBusiness);
-
-            if (isBusiness) {
-                tipoOffertaLuce.innerHTML = `
-                    <option value="">Seleziona...</option>
-                    <option value="SMART BUSINESS LUCE">SMART BUSINESS LUCE</option>
-                    <option value="SMART BUSINESS LUCE+">SMART BUSINESS LUCE+</option>
-                `;
-                tipoOffertaGas.innerHTML = `
-                    <option value="">Seleziona...</option>
-                    <option value="SMART BUSINESS GAS">SMART BUSINESS GAS</option>
-                    <option value="SMART BUSINESS GAS+">SMART BUSINESS GAS+</option>
-                `;
-            } else {
-                tipoOffertaLuce.innerHTML = `
-                    <option value="">Seleziona...</option>
-                    <option value="SMART CASA LUCE">SMART CASA LUCE</option>
-                    <option value="SMART CASA LUCE+">SMART CASA LUCE+</option>
-                    <option value="NOI2">NOI2</option>
-                `;
-                tipoOffertaGas.innerHTML = `
-                    <option value="">Seleziona...</option>
-                    <option value="SMART CASA GAS">SMART CASA GAS</option>
-                    <option value="SMART CASA GAS+">SMART CASA GAS+</option>
-                `;
-            }
-        });
-
-        tipoContratto.addEventListener('change', () => {
-            const selected = tipoContratto.value;
-            dynamicFields.classList.remove('hidden');
-            podField.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
-            pdrField.classList.toggle('hidden', !selected.includes('GAS') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
-
-            tipoOffertaLuceField.classList.toggle('hidden', !selected.includes('LUCE') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
-            tipoOffertaGasField.classList.toggle('hidden', !selected.includes('GAS') && selected !== 'SWITCH DUAL' && selected !== 'ATTIVAZIONE DUAL');
-
-            const noi2Option = document.querySelector("#tipoOffertaLuce option[value='NOI2']");
-            if (selected === 'SWITCH LUCE' || selected === 'SWITCH DUAL') {
-                noi2Option.classList.remove('hidden');
-            } else {
-                noi2Option.classList.add('hidden');
-                if (tipoOffertaLuce.value === 'NOI2') {
-                    tipoOffertaLuce.value = '';
-                }
-            }
-
-            if (selected === 'VOLTURA LUCE') {
-                popupMessage.textContent = "PER QUESTA PRATICA BISOGNA ALLEGARE CARTA IDENTITÀ FRONTE E RETRO E DICHIARAZIONE TITOLO OCCUPAZIONALE COMPILATA E FIRMATA.";
-                popup.style.display = 'block';
-            } else if (['ATTIVAZIONE LUCE', 'ATTIVAZIONE GAS', 'ATTIVAZIONE DUAL'].includes(selected)) {
-                popupMessage.textContent = "PER QUESTA PRATICA BISOGNA ALLEGARE CARTA IDENTITÀ FRONTE E RETRO, DICHIARAZIONE TITOLO OCCUPAZIONALE E DICHIARAZIONE REGOLARITÀ EDILIZIA COMPILATE E FIRMATE.";
-                popup.style.display = 'block';
-            }
-        });
-
-        pagamento.addEventListener('change', () => {
-            ibanField.classList.toggle('hidden', pagamento.value !== 'IBAN');
-        });
-
-        function closePopup() {
-            popup.style.display = 'none';
+    /* --- Calcolo e comparazione delle offerte --- */
+    document.getElementById("bollettaForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      var nome = document.getElementById("nome").value;
+      var checkboxes = document.querySelectorAll('input[name="mese"]:checked');
+      var numMesi = checkboxes.length;
+      var selectedMonths = [];
+      var sumPUN = 0;
+      checkboxes.forEach(function(cb) {
+        selectedMonths.push(cb.value);
+        var monthData = punData.find(function(item) { return item.month === cb.value; });
+        if (monthData) { sumPUN += monthData.value; }
+      });
+      var mesiSelectedString = selectedMonths.join(", ");
+      var mediaPUN = numMesi > 0 ? sumPUN / numMesi : 0;
+      var kwFatturati = parseFloat(document.getElementById("kwFatturati").value);
+      var consumoAnnuo = parseFloat(document.getElementById("consumoAnnuo").value);
+      var potenza = parseFloat(document.getElementById("potenza").value);
+      var spesaEnergia = parseFloat(document.getElementById("spesaEnergia").value);
+      var totaleBolletta = parseFloat(document.getElementById("totaleBolletta").value);
+      var isClienteFastweb = document.getElementById("clienteFastweb").checked;
+      
+      /* --- Offerta FIX --- */
+      var fixedCostFIX = isClienteFastweb ? 3 * numMesi : 13 * numMesi;
+      // Aggiungiamo DISPACCIAMENTO: €0,011 per kWh
+      var energyCostFIX = kwFatturati * (0.193 + 0.011);
+      var offFIX = fixedCostFIX + energyCostFIX;
+      
+      /* --- Offerta FLEX --- */
+      var fixedCostFLEX = isClienteFastweb ? 3 * numMesi : 13 * numMesi;
+      var energyCostFLEX = kwFatturati * (mediaPUN + 0.04 + 0.011);
+      var offFLEX = fixedCostFLEX + energyCostFLEX;
+      
+      /* --- Offerta a Canone Fisso (Fasce) --- */
+      function computeTierComponents(consumo, threshold, baseCost) {
+        var extraCost = 0;
+        if (consumo > threshold) {
+          extraCost = ((consumo - threshold) * 0.45) / 12;
         }
-
-        function sendViaWhatsApp() {
-            const message = prepareMessage();
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+        return { baseCost: baseCost, extraCost: extraCost, total: baseCost + extraCost, threshold: threshold };
+      }
+      var compLIGHT = computeTierComponents(consumoAnnuo, 1500, (potenza === 3 ? 50 : (potenza === 4.5 ? 55 : 60)));
+      var compFULL  = computeTierComponents(consumoAnnuo, 2500, (potenza === 3 ? 70 : (potenza === 4.5 ? 75 : 80)));
+      var compMAXI  = computeTierComponents(consumoAnnuo, 4000, (potenza === 3 ? 100 : (potenza === 4.5 ? 105 : 110)));
+      
+      var defaultTier = "";
+      if (consumoAnnuo <= 1500) { defaultTier = "LIGHT"; }
+      else if (consumoAnnuo <= 2500) { defaultTier = "FULL"; }
+      else if (consumoAnnuo <= 4000) { defaultTier = "MAXI"; }
+      else { defaultTier = "Business"; }
+      
+      var offCanoneFisso = 0;
+      var bestTier = "";
+      var compUsed = null;
+      if (consumoAnnuo > 4000) {
+        bestTier = "Business";
+        offCanoneFisso = NaN;
+      } else {
+        bestTier = "LIGHT";
+        offCanoneFisso = compLIGHT.total;
+        compUsed = compLIGHT;
+        if (compFULL.total < offCanoneFisso) {
+          offCanoneFisso = compFULL.total;
+          bestTier = "FULL";
+          compUsed = compFULL;
         }
-
-        function sendViaMail() {
-            const nomeCognome = document.getElementById('nomeCognome').value;
-            const ragioneSociale = document.getElementById('ragioneSociale').value;
-            const subject = `Richiesta di Inserimento - ${nomeCognome || ragioneSociale}`;
-            const message = prepareMessage();
-            const mailtoUrl = `mailto:m.isernia@a2retail.it?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-            window.open(mailtoUrl, '_blank');
+        if (compMAXI.total < offCanoneFisso) {
+          offCanoneFisso = compMAXI.total;
+          bestTier = "MAXI";
+          compUsed = compMAXI;
         }
-
-        function prepareMessage() {
-            let message = "CIAO, TI CHIEDO DI INSERIRE QUESTA PRATICA E DI DARMI CONFERMA INSERIMENTO. GRAZIE\n\n";
-            const fields = Array.from(document.querySelectorAll('input, select')).filter(field => field.value);
-            fields.forEach(field => {
-                message += `${field.previousElementSibling?.textContent || field.name}: ${field.value}\n`;
-            });
-            return message;
+      }
+      
+      /* --- Margine residuo --- */
+      var marginMsg = "";
+      if (bestTier !== "Business") {
+        var threshold;
+        if (bestTier === "LIGHT") { threshold = 1500; }
+        else if (bestTier === "FULL") { threshold = 2500; }
+        else if (bestTier === "MAXI") { threshold = 4000; }
+        var availableMargin = threshold - consumoAnnuo;
+        if (availableMargin > 0) {
+          marginMsg = "Puoi consumare fino a " + availableMargin.toFixed(0) + " kWh in più all'anno mantenendo lo stesso prezzo.";
+        } else {
+          marginMsg = "Il consumo annuo supera il limite della fascia consigliata.";
         }
-    </script>
+      } else {
+        marginMsg = "Per consumi superiori a 4000 kWh si consiglia l'Offerta Business.";
+      }
+      
+      /* --- Confronti --- */
+      var diffCanone = totaleBolletta - offCanoneFisso;
+      var diffFIX = spesaEnergia - offFIX;
+      var diffFLEX = spesaEnergia - offFLEX;
+      
+      function createDiffBox(diff) {
+        var cls = diff >= 0 ? "green" : "red";
+        var text = diff >= 0 ? "Risparmio di " : "Costo superiore di ";
+        return '<div class="savings ' + cls + '">' + text + Math.abs(diff).toFixed(2) + " €</div>";
+      }
+      
+      /* --- Risultati Offerte --- */
+      // Offerta a Canone Fisso
+      var resultCanone = "";
+      resultCanone += "<h3>Offerta a Canone Fisso (Fasce)</h3>";
+      resultCanone += "<p><strong>Fascia consigliata:</strong> " + bestTier + "</p>";
+      if (bestTier !== "Business") {
+        resultCanone += "<p><strong>Dettaglio costi:</strong></p>";
+        resultCanone += "<div class='detail'>Costo Base: € " + compUsed.baseCost.toFixed(2) + " /mese<br>";
+        resultCanone += "Costo Extra per kWh in eccesso: € " + compUsed.extraCost.toFixed(2) + " /mese<br>";
+        resultCanone += "Totale Costo Mensile: € " + offCanoneFisso.toFixed(2) + " /mese</div>";
+        resultCanone += "<p><strong>Totale Bolletta inserito:</strong> € " + totaleBolletta.toFixed(2) + "</p>";
+        resultCanone += "<p>" + marginMsg + "</p>";
+        var diffCanoneText = diffCanone < 0 ? "OFFERTA PIÙ ALTA DI: € " + Math.abs(diffCanone).toFixed(2) : "RISPARMIO DI: € " + diffCanone.toFixed(2);
+        resultCanone += createDiffBox(diffCanone);
+      } else {
+        resultCanone += "<p>Consumo elevato. Si consiglia di valutare l'Offerta Business.</p>";
+      }
+      resultCanone += "<div class='offerActions'><button class='whatsappBtn' onclick=\"sendWhatsApp('canone')\">Invia via WhatsApp</button> <button onclick=\"printOfferPdf('canone')\">Stampa Preventivo</button></div>";
+      
+      // Offerta FIX
+      var resultFIX = "";
+      resultFIX += "<h3>Offerta FIX</h3>";
+      var fixedCostTextFIX = (fixedCostFIX).toFixed(2);
+      var energyCostTextFIX = energyCostFIX.toFixed(2);
+      resultFIX += "<p><strong>Dettaglio Offerta:</strong></p>";
+      resultFIX += "<div class='detail'>- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "<br>";
+      resultFIX += "- Costo Fisso (per il periodo): € " + fixedCostTextFIX;
+      if(isClienteFastweb) { resultFIX += " (Sconto Fastweb applicato: €3/mese)"; }
+      resultFIX += "<br>";
+      resultFIX += "- Costo Energia + Dispacciamento: € " + energyCostTextFIX + "<br>";
+      resultFIX += "- Totale Offerta: € " + offFIX.toFixed(2) + " /mese</div>";
+      resultFIX += "<p><strong>Spesa Attuale:</strong> € " + spesaEnergia.toFixed(2) + "</p>";
+      resultFIX += createDiffBox(diffFIX);
+      resultFIX += "<div class='offerActions'><button class='whatsappBtn' onclick=\"sendWhatsApp('fix')\">Invia via WhatsApp</button> <button onclick=\"printOfferPdf('fix')\">Stampa Preventivo</button></div>";
+      
+      // Offerta FLEX
+      var resultFLEX = "";
+      resultFLEX += "<h3>Offerta FLEX</h3>";
+      var fixedCostTextFLEX = (fixedCostFLEX).toFixed(2);
+      var energyCostTextFLEX = energyCostFLEX.toFixed(2);
+      resultFLEX += "<p><strong>Dettaglio Offerta:</strong></p>";
+      resultFLEX += "<div class='detail'>- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "<br>";
+      resultFLEX += "- Costo Fisso (per il periodo): € " + fixedCostTextFLEX;
+      if(isClienteFastweb) { resultFLEX += " (Sconto Fastweb applicato: €3/mese)"; }
+      resultFLEX += "<br>";
+      resultFLEX += "- Costo Energia (media PUN + spread + Dispacciamento): € " + energyCostTextFLEX + "<br>";
+      resultFLEX += "- Totale Offerta: € " + offFLEX.toFixed(2) + " /mese</div>";
+      resultFLEX += "<p><strong>Spesa Attuale:</strong> € " + spesaEnergia.toFixed(2) + "</p>";
+      resultFLEX += createDiffBox(diffFLEX);
+      resultFLEX += "<div class='offerActions'><button class='whatsappBtn' onclick=\"sendWhatsApp('flex')\">Invia via WhatsApp</button> <button onclick=\"printOfferPdf('flex')\">Stampa Preventivo</button></div>";
+      
+      var bgColorCanone = (diffCanone >= 0) ? "#d4f4d4" : "#f4d4d4";
+      var bgColorFIX = (diffFIX >= 0) ? "#d4f4d4" : "#f4d4d4";
+      var bgColorFLEX = (diffFLEX >= 0) ? "#d4f4d4" : "#f4d4d4";
+      var fullResult = "<div class='offerResult' id='resultCanone' style='background-color: " + bgColorCanone + ";'>" + resultCanone + "</div>" +
+                       "<div class='offerResult' id='resultFIX' style='background-color: " + bgColorFIX + ";'>" + resultFIX + "</div>" +
+                       "<div class='offerResult' id='resultFLEX' style='background-color: " + bgColorFLEX + ";'>" + resultFLEX + "</div>";
+      document.getElementById("risultato").innerHTML = fullResult;
+      
+      /* --- Riepilogo Offerte: condizioni standard per tutte le offerte --- */
+      let riepilogoHTML = "<table><thead><tr>" +
+                          "<th>Tipo Offerta</th>" +
+                          "<th>Condizioni</th></tr></thead><tbody>";
+      riepilogoHTML += "<tr><td>Canone Fisso (Fasce)</td><td>" +
+                      "<table style='width:100%; border-collapse:collapse;'>" +
+                      "<tr><th style='border:1px solid #ccc; padding:4px;'>Fascia</th>" +
+                      "<th style='border:1px solid #ccc; padding:4px;'>Soglia (kWh/anno)</th>" +
+                      "<th style='border:1px solid #ccc; padding:4px;'>Costo Base (3kW/4.5kW/6kW)</th>" +
+                      "<th style='border:1px solid #ccc; padding:4px;'>Extra (€/kWh/mese)</th></tr>" +
+                      "<tr><td style='border:1px solid #ccc; padding:4px;'>LIGHT</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>1.500</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>€50 / €55 / €60</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
+                      "<tr><td style='border:1px solid #ccc; padding:4px;'>FULL</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>2.500</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>€70 / €75 / €80</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
+                      "<tr><td style='border:1px solid #ccc; padding:4px;'>MAXI</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>4.000</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>€100 / €105 / €110</td>" +
+                      "<td style='border:1px solid #ccc; padding:4px;'>€0,45</td></tr>" +
+                      "</table>" +
+                      "</td></tr>";
+      riepilogoHTML += "<tr><td>FIX</td><td>Costo fisso: €13/mese" +
+                      " " + "(o €3/mese se Cliente Fastweb)" +
+                      " + Energia: €0,193 per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      riepilogoHTML += "<tr><td>FLEX</td><td>Costo fisso: €13/mese" +
+                      " " + "(o €3/mese se Cliente Fastweb)" +
+                      " + Energia: (PUN + €0,04) per kWh + Dispacciamento: €0,011 per kWh</td></tr>";
+      riepilogoHTML += "</tbody></table>";
+      document.getElementById("riepilogoOfferte").innerHTML = riepilogoHTML;
+      
+      /* --- Testi WhatsApp --- */
+      var diffCanoneText = diffCanone < 0 ? "OFFERTA PIÙ ALTA DI: € " + Math.abs(diffCanone).toFixed(2) : "RISPARMIO DI: € " + diffCanone.toFixed(2);
+      whatsappTextCanone = "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n\n" +
+                           "Nome Cliente: " + nome + "\n\n" +
+                           "Offerta: " + bestTier + " (Totale costo comprende IVA, dispacciamento, oneri di sistema, trasporto, gestione contatore e tutto compreso) (" + mesiSelectedString + ")\n\n" +
+                           "Dettagli Offerta:\n" +
+                           "- Costo Base: € " + compUsed.baseCost.toFixed(2) + " /mese\n" +
+                           (compUsed.extraCost > 0 ? "- Costo Extra per kWh in eccesso: € " + compUsed.extraCost.toFixed(2) + " /mese\n" : "") +
+                           "- Totale Offerta: € " + offCanoneFisso.toFixed(2) + " /mese\n\n" +
+                           "Totale Bolletta inserito: € " + totaleBolletta.toFixed(2) + "\n\n" +
+                           diffCanoneText + "\n\n" +
+                           "Per ulteriori dettagli o chiarimenti, non esitare a contattarci!";
+      
+      whatsappTextFIX = "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n\n" +
+                           "Nome Cliente: " + nome + "\n\n" +
+                           "Offerta: FASTWEB FIX (" + mesiSelectedString + ")\n\n" +
+                           "Dettagli Offerta:\n" +
+                           "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "\n" +
+                           "- Costo Fisso (per il periodo): € " + fixedCostTextFIX;
+      if(isClienteFastweb) { whatsappTextFIX += " (Sconto Fastweb applicato: €3/mese)"; }
+      whatsappTextFIX += "\n" +
+                           "- Totale Offerta: € " + offFIX.toFixed(2) + " /mese\n\n" +
+                           "Spesa Attuale: € " + spesaEnergia.toFixed(2) + "\n\n" +
+                           "RISPARMIO DI: € " + diffFIX.toFixed(2) + "\n\n" +
+                           "NOTA:\n" +
+                           "Il presente calcolo è indicativo e si riferisce solo alle spese di energia per il periodo selezionato. Non tiene conto di IVA, tasse, oneri di sistema, canone RAI, trasporto, gestione contatore e altre voci di stato.\n\n" +
+                           "Per ulteriori dettagli o chiarimenti, non esitare a contattarci!";
+      
+      whatsappTextFLEX = "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n\n" +
+                           "Nome Cliente: " + nome + "\n\n" +
+                           "Offerta: FASTWEB FLEX (" + mesiSelectedString + ")\n\n" +
+                           "Dettagli Offerta:\n" +
+                           "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "\n" +
+                           "- Costo Fisso (per il periodo): € " + fixedCostTextFLEX;
+      if(isClienteFastweb) { whatsappTextFLEX += " (Sconto Fastweb applicato: €3/mese)"; }
+      whatsappTextFLEX += "\n" +
+                           "- Totale Offerta: € " + offFLEX.toFixed(2) + " /mese\n\n" +
+                           "Spesa Attuale: € " + spesaEnergia.toFixed(2) + "\n\n" +
+                           "RISPARMIO DI: € " + diffFLEX.toFixed(2) + "\n\n" +
+                           "NOTA:\n" +
+                           "Il presente calcolo è indicativo e si riferisce solo alle spese di energia per il periodo selezionato. Non tiene conto di IVA, tasse, oneri di sistema, canone RAI, trasporto, gestione contatore e altre voci di stato.\n\n" +
+                           "Per ulteriori dettagli o chiarimenti, non esitare a contattarci!";
+    });
+  </script>
 </body>
 </html>
