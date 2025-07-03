@@ -20,7 +20,7 @@
       padding: 20px;
     }
     .container {
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto;
       padding: 10px;
     }
@@ -121,13 +121,25 @@
       font-weight: bold;
     }
     /* Risultati Offerte */
-    .offerResult {
-      border: 1px solid #ccc;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 5px;
-      background-color: #fafafa; /* si aggiorna dinamicamente */
-    }
+    /* Risultati Offerte */
+.offerResult {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  /* rimuoviamo il background fisso */
+  background-color: transparent;
+  transition: background-color 0.3s;
+}
+/* sfondo verde (risparmio) */
+.offerResult.green-bg {
+  background-color: #d4f4d4 !important;
+}
+/* sfondo rosso (costo superiore) */
+.offerResult.red-bg {
+  background-color: #f4d4d4 !important;
+}
+
     .detail {
       margin-left: 15px;
       font-size: 0.95em;
@@ -198,11 +210,15 @@
         <label>Periodo di Fatturazione (seleziona i mesi):</label>
         <div id="periodoCheckboxes"></div>
 
+
         <label for="kwFatturati">kW Fatturati (consumo del periodo in kWh):</label>
         <input type="number" id="kwFatturati" name="kwFatturati" required>
 
         <label for="consumoAnnuo">Consumo Annuo (kWh):</label>
         <input type="number" id="consumoAnnuo" name="consumoAnnuo" required>
+
+	<label for="spesaAnnua">Spesa Annua Sostenuta (€):</label>
+	<input type="number" id="spesaAnnua" name="spesaAnnua" step="0.01" placeholder="Facoltativo">
 
         <label for="potenza">Potenza Contatore (kWh):</label>
         <select id="potenza" name="potenza" required>
@@ -222,6 +238,11 @@
           Cliente Fastweb / Vodafone
         </label>
 
+<label id="clienteBusinessLabel">
+  <input type="checkbox" id="clienteBusiness" name="clienteBusiness">
+  Cliente Business
+</label>
+
         <button type="submit">Analizza Bolletta</button>
       </form>
       <div id="risultato"></div>
@@ -233,7 +254,6 @@
   <script>
     // PUN aggiornati: eliminato "ago-24", aggiunti "apr-25" e "mag-25"
     var punData = [
-      { month: "set-24", value: 0.11713 },
       { month: "ott-24", value: 0.11669 },
       { month: "nov-24", value: 0.13089 },
       { month: "dic-24", value: 0.13507 },
@@ -241,7 +261,8 @@
       { month: "feb-25", value: 0.15037 },
       { month: "mar-25", value: 0.12055 },
       { month: "apr-25", value: 0.09985 },
-      { month: "mag-25", value: 0.093580 }
+      { month: "mag-25", value: 0.093580 },
+      { month: "giu-25", value: 0.11178 }
     ];
     var periodoContainer = document.getElementById("periodoCheckboxes");
     punData.forEach(function(item) {
@@ -256,76 +277,90 @@
       periodoContainer.appendChild(label);
     });
 
-    // Funzione per invio WhatsApp
-    function sendWhatsApp(offerType) {
-      var text = "";
-      if (offerType === "canone") { text = whatsappTextCanone; }
-      else if (offerType === "fix") { text = whatsappTextFIX; }
-      else if (offerType === "flex") { text = whatsappTextFLEX; }
-      window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+    // Variabili globali per i testi WhatsApp
+  var whatsappTextCanone    = "";
+  var whatsappTextFIX       = "";
+  var whatsappTextFLEX      = "";
+  var whatsappTextBizFIX    = "";
+  var whatsappTextBizFLEX   = "";
+
+  // Funzione per invio WhatsApp
+  function sendWhatsApp(offerType) {
+    var text = "";
+    if (offerType === "canone")         text = whatsappTextCanone;
+    else if (offerType === "fix")       text = whatsappTextFIX;
+    else if (offerType === "flex")      text = whatsappTextFLEX;
+    else if (offerType === "businessFix")  text = whatsappTextBizFIX;
+    else if (offerType === "businessFlex") text = whatsappTextBizFLEX;
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+  }
+
+  // Funzione per generare il PDF voucher tramite jsPDF
+  function printOfferPdf(offerType) {
+    let voucherText = "";
+    if (offerType === "canone")         voucherText = whatsappTextCanone;
+    else if (offerType === "fix")       voucherText = whatsappTextFIX;
+    else if (offerType === "flex")      voucherText = whatsappTextFLEX;
+    else if (offerType === "businessFix")  voucherText = whatsappTextBizFIX;
+    else if (offerType === "businessFlex") voucherText = whatsappTextBizFLEX;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const borderX = 10, borderY = 10, borderW = 190, borderH = 100;
+    doc.setDrawColor(0, 0, 0);
+    doc.rect(borderX, borderY, borderW, borderH);
+
+    let lines = voucherText.split("\n");
+    let y = borderY + 10;
+    let title = "";
+    if (lines[0].startsWith("----")) { title = lines.shift(); }
+    if (title !== "") {
+      doc.setFontSize(20);
+      doc.setTextColor(244, 190, 0);
+      doc.setFont("helvetica", "bold");
+      let titleWidth = doc.getTextWidth(title);
+      let titleX = borderX + (borderW - titleWidth) / 2;
+      doc.text(title, titleX, y);
+      y += 15;
     }
 
-    // Funzione per generare il PDF voucher tramite jsPDF
-    function printOfferPdf(offerType) {
-      let voucherText = "";
-      if (offerType === "canone") { voucherText = whatsappTextCanone; }
-      else if (offerType === "fix") { voucherText = whatsappTextFIX; }
-      else if (offerType === "flex") { voucherText = whatsappTextFLEX; }
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
-      
-      // Area di testo: bordo di 10 mm, area alta 100 mm (10 cm)
-      const borderX = 10, borderY = 10, borderW = 190, borderH = 100;
-      doc.setDrawColor(0, 0, 0);
-      doc.rect(borderX, borderY, borderW, borderH);
-      
-      let lines = voucherText.split("\n");
-      let y = borderY + 10;
-      let title = "";
-      if (lines[0].startsWith("----")) { title = lines.shift(); }
-      if (title !== "") {
-        doc.setFontSize(20);
+    let initialFontSize = 9;
+    doc.setFontSize(initialFontSize);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    let lineSpacing = 4;
+    if (lines.length * lineSpacing > borderH - 20) {
+      let newFontSize = initialFontSize * ((borderH - 20) / (lines.length * lineSpacing));
+      doc.setFontSize(newFontSize);
+      lineSpacing = newFontSize * 0.5 + 2;
+    }
+
+    lines.forEach((line) => {
+      if (line.toUpperCase().includes("FASTWEB")) {
         doc.setTextColor(244, 190, 0);
         doc.setFont("helvetica", "bold");
-        let titleWidth = doc.getTextWidth(title);
-        let titleX = borderX + (borderW - titleWidth) / 2;
-        doc.text(title, titleX, y);
-        y += 15;
+      } else {
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
       }
-      
-      let initialFontSize = 9;
-      doc.setFontSize(initialFontSize);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "normal");
-      let lineSpacing = 4;
-      if (lines.length * lineSpacing > borderH - 20) {
-        let newFontSize = initialFontSize * ((borderH - 20) / (lines.length * lineSpacing));
-        doc.setFontSize(newFontSize);
-        lineSpacing = newFontSize * 0.5 + 2;
+      let splitLine = doc.splitTextToSize(line, borderW - 10);
+      if (y + splitLine.length * lineSpacing > borderY + borderH - 5) {
+        y = borderY + borderH - splitLine.length * lineSpacing - 5;
       }
-      
-      lines.forEach((line) => {
-          if (line.toUpperCase().includes("FASTWEB")) {
-              doc.setTextColor(244, 190, 0);
-              doc.setFont("helvetica", "bold");
-          } else {
-              doc.setTextColor(0, 0, 0);
-              doc.setFont("helvetica", "normal");
-          }
-          let splitLine = doc.splitTextToSize(line, borderW - 10);
-          if (y + splitLine.length * lineSpacing > borderY + borderH - 5) {
-              y = borderY + borderH - splitLine.length * lineSpacing - 5;
-          }
-          doc.text(splitLine, borderX + 5, y);
-          y += splitLine.length * lineSpacing;
-      });
-      doc.save("Voucher_" + offerType.toUpperCase() + ".pdf");
-    }
+      doc.text(splitLine, borderX + 5, y);
+      y += splitLine.length * lineSpacing;
+    });
+
+    doc.save("Voucher_" + offerType.toUpperCase() + ".pdf");
+  }
 
     // Variabili globali per i testi WhatsApp
     var whatsappTextCanone = "";
     var whatsappTextFIX = "";
     var whatsappTextFLEX = "";
+var whatsappTextBizFIX  = "";
+var whatsappTextBizFLEX = "";
+
 
     // Funzione per generare il riepilogo offerte (condizioni standard)
     function generateRiepilogoTable() {
@@ -336,35 +371,36 @@
               "<table style='width:100%; border-collapse:collapse;'>" +
               "<tr><th style='border:1px solid #ccc; padding:4px;'>Fascia</th>" +
               "<th style='border:1px solid #ccc; padding:4px;'>Soglia (kWh/anno)</th>" +
-              "<th style='border:1px solid #ccc; padding:4px;'>Costo Base Mensile (3kW/4.5kW/6kW)</th>" +
-              "<th style='border:1px solid #ccc; padding:4px;'>Costo Base Annuale</th>" +
+              "<th style='border:1px solid #ccc; padding:4px;'>Costo Base Mensile (3kW / 4.5kW / 6kW)</th>" +
               "<th style='border:1px solid #ccc; padding:4px;'>Extra (€/kWh, annuale)</th>" +
               "<th style='border:1px solid #ccc; padding:4px;'>Totale Annuale</th></tr>";
       html += "<tr><td style='border:1px solid #ccc; padding:4px;'>LIGHT</td>" +
-              "<td style='border:1px solid #ccc; padding:4px;'>1.500</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>fino a 1.500</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>€50 / €55 / €60</td>" +
-              "<td style='border:1px solid #ccc; padding:4px;'>(Mesi selezionati × costo mensile)</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>€0,45 per kWh in eccesso</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>Costo Base Annuale + Extra</td></tr>";
       html += "<tr><td style='border:1px solid #ccc; padding:4px;'>FULL</td>" +
-              "<td style='border:1px solid #ccc; padding:4px;'>2.500</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>fino a 2.500</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>€70 / €75 / €80</td>" +
-              "<td style='border:1px solid #ccc; padding:4px;'>(Mesi selezionati × costo mensile)</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>€0,45 per kWh in eccesso</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>Costo Base Annuale + Extra</td></tr>";
       html += "<tr><td style='border:1px solid #ccc; padding:4px;'>MAXI</td>" +
-              "<td style='border:1px solid #ccc; padding:4px;'>4.000</td>" +
+              "<td style='border:1px solid #ccc; padding:4px;'>fino a 4.000</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>€100 / €105 / €110</td>" +
-              "<td style='border:1px solid #ccc; padding:4px;'>(Mesi selezionati × costo mensile)</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>€0,45 per kWh in eccesso</td>" +
               "<td style='border:1px solid #ccc; padding:4px;'>Costo Base Annuale + Extra</td></tr>";
       html += "</table>" +
               "<p style='margin:8px 0 0; color:#000; font-weight:bold;'>Sconto di 10 € sulla tariffa mensile per i clienti Fastweb/Vodafone</p>" +
               "</td></tr>";
-      // Offerta FIX (kWh include già il valore 0,011)
-      html += "<tr><td>FIX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb/Vodafone) + Energia: €0,204 /kWh</td></tr>";
-      // Offerta FLEX (PUN + 0,04 + 0,011 = PUN + 0,051)
-      html += "<tr><td>FLEX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb/Vodafone) + Energia: (PUN + €0,051) /kWh</td></tr>";
+      // Offerta FIX DOMESTICO (kWh include già il valore 0,011)
+      html += "<tr><td>FIX DOMESTICO</td><td>Costo fisso: €13/mese (o €10/mese se Cliente Fastweb/Vodafone) + Energia: €0,193 /kWh</td></tr>";
+      // Offerta FLEX DOMESTICO (PUN + 0,04 + 0,015 = PUN + 0,055)
+      html += "<tr><td>FLEX DOMESTICO</td><td>Costo fisso: €13/mese (o €10/mese se Cliente Fastweb/Vodafone) + Energia: (PUN + €0,040) /kWh</td></tr>";
+// Offerta FIX BUSINESS (kWh include già il valore 0,011)
+      html += "<tr><td>FIX BUSINESS</td><td>Costo fisso: €20/mese (o €5/mese se Cliente Fastweb/Vodafone) + Energia: €0,185 /kWh</td></tr>";
+      // Offerta FLEX BUSINESS (PUN + 0,04 + 0,015 = PUN + 0,051)
+      html += "<tr><td>FLEX BUSINESS</td><td>Costo fisso: €20/mese (o €5/mese se Cliente Fastweb/Vodafone) + Energia: (PUN + €0,030) /kWh</td></tr>";
+
       html += "</tbody></table>";
       return html;
     }
@@ -383,6 +419,9 @@
     // Calcolo e comparazione delle offerte
     document.getElementById("bollettaForm").addEventListener("submit", function(event) {
       event.preventDefault();
+// --- NUOVO: Spesa Annua Sostenuta (opzionale) ---
+      var spesaAnnuaVal = document.getElementById("spesaAnnua").value;
+      var spesaAnnua    = spesaAnnuaVal ? parseFloat(spesaAnnuaVal) : null;
       var nome = document.getElementById("nome").value;
       var checkboxes = document.querySelectorAll('input[name="mese"]:checked');
       var numMesi = checkboxes.length;
@@ -401,16 +440,23 @@
       var spesaEnergia = parseFloat(document.getElementById("spesaEnergia").value);
       var totaleBolletta = parseFloat(document.getElementById("totaleBolletta").value);
       var isClienteFastweb = document.getElementById("clienteFastweb").checked;
+// ❗️ Nuova variabile per Business
+var isClienteBusiness = document.getElementById("clienteBusiness").checked;
+
+// ❗️ Costo dispacciamento
+var dispCost = 0.011;
       
       /* --- Offerta FIX --- */
       // 0,193 + 0,011 = 0,204 €/kWh
-      var fixedCostFIX = isClienteFastweb ? 3 * numMesi : 13 * numMesi;
+      // Sconto di 3€ al mese per cliente Fastweb/Vodafone su FIX
+      var fixedCostFIX = (13 - (isClienteFastweb ? 3 : 0)) * numMesi;
       var energyCostFIX = kwFatturati * 0.204;
       var offFIX = fixedCostFIX + energyCostFIX;
       
       /* --- Offerta FLEX --- */
       // PUN + 0,04 + 0,011 = PUN + 0,051 €/kWh
-      var fixedCostFLEX = isClienteFastweb ? 3 * numMesi : 13 * numMesi;
+      // Sconto di 3€ al mese per cliente Fastweb/Vodafone su FLEX
+      var fixedCostFLEX = (13 - (isClienteFastweb ? 3 : 0)) * numMesi;      
       var energyCostFLEX = kwFatturati * (mediaPUN + 0.051);
       var offFLEX = fixedCostFLEX + energyCostFLEX;
       
@@ -467,6 +513,21 @@
           recommendedTier = "MAXI";
           compUsed = annualMAXI;
         }
+var deltaAnnua = null;
+  if (spesaAnnua !== null) {
+    deltaAnnua = spesaAnnua - compUsed.totalAnnual;
+  }
+
+  // poi costruisci resultCanone, inserendo questa parte:
+  if (deltaAnnua !== null) {
+    if (deltaAnnua >= 0) {
+      resultCanone += "<p><strong>Risparmio annuo rispetto alla spesa sostenuta:</strong> € "
+                   + deltaAnnua.toFixed(2) + "</p>";
+    } else {
+      resultCanone += "<p><strong>Spesa annua superiore di:</strong> € "
+                   + Math.abs(deltaAnnua).toFixed(2) + "</p>";
+    }
+  }
       }
       
       /* --- Analisi Comparativa --- */
@@ -538,6 +599,20 @@
         }
         resultCanone += "</div>";
         resultCanone += "<p><strong>Totale Bolletta inserito:</strong> € " + totaleBolletta.toFixed(2) + "</p>";
+// --- NUOVO: output Spesa Annua Sostenuta solo per Canone Fisso ---
+if (deltaAnnua !== null) {
+  if (deltaAnnua >= 0) {
+    resultCanone +=
+      "<p><strong>Risparmio annuo rispetto alla spesa sostenuta:</strong> € " +
+      deltaAnnua.toFixed(2) +
+      "</p>";
+  } else {
+    resultCanone +=
+      "<p><strong>Spesa annua superiore di:</strong> € " +
+      Math.abs(deltaAnnua).toFixed(2) +
+      "</p>";
+  }
+}
         resultCanone += createDiffBox(diffPartial);
       } else {
         resultCanone += "<p>Consumo elevato. Si consiglia di valutare l'Offerta Business.</p>";
@@ -553,7 +628,7 @@
       resultFIX += "<div class='detail'>";
       resultFIX += "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "<br>";
       resultFIX += "- Costo Fisso (per il periodo): € " + fixedCostTextFIX;
-      if(isClienteFastweb) { resultFIX += " (Sconto Fastweb/Vodafone applicato: €10 sui canoni)"; }
+      if(isClienteFastweb) { resultFIX += " (Sconto Fastweb/Vodafone applicato: €3 sui canoni)"; }
       resultFIX += "<br>";
       resultFIX += "- Costo Energia (incluso oneri fissi): € " + energyCostTextFIX + "<br>";
       resultFIX += "- Totale Offerta: € " + offFIX.toFixed(2) + " /mese</div>";
@@ -570,7 +645,7 @@
       resultFLEX += "<div class='detail'>";
       resultFLEX += "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "<br>";
       resultFLEX += "- Costo Fisso (per il periodo): € " + fixedCostTextFLEX;
-      if(isClienteFastweb) { resultFLEX += " (Sconto Fastweb/Vodafone applicato: €10 sui canoni)"; }
+      if(isClienteFastweb) { resultFLEX += " (Sconto Fastweb/Vodafone applicato: €3 sui canoni)"; }
       resultFLEX += "<br>";
       resultFLEX += "- Costo Energia (incluso oneri fissi): € " + energyCostTextFLEX + "<br>";
       resultFLEX += "- Totale Offerta: € " + offFLEX.toFixed(2) + " /mese</div>";
@@ -583,10 +658,84 @@
       var bgColorFLEX   = (diffFLEX >= 0) ? "#d4f4d4" : "#f4d4d4";
       
       // Preparo output completo, includendo banner se non cliente Fastweb/Vodafone
-      var fullResult = promoBanner +
-                       "<div class='offerResult' id='resultCanone' style='background-color: " + bgColorCanone + ";'>" + resultCanone + "</div>" +
-                       "<div class='offerResult' id='resultFIX'    style='background-color: " + bgColorFIX    + ";'>" + resultFIX    + "</div>" +
-                       "<div class='offerResult' id='resultFLEX'   style='background-color: " + bgColorFLEX   + ";'>" + resultFLEX   + "</div>";
+            // --- OUTPUT FINALE ---
+      var fullResult = promoBanner;
+
+      if (isClienteBusiness) {
+        // se è anche cliente Fastweb/Vodafone, sconto di 15€/mese su fissi
+        var bizDiscount = isClienteFastweb ? 15 : 0;
+
+        // Calcolo BUSINESS FIX
+        var fixedCostBizFIX   = (20 - bizDiscount) * numMesi;
+        var energyCostBizFIX  = kwFatturati * 0.183;
+        var dispBizFIX        = kwFatturati * 0.011;
+        // qui definisci il totale
+        var totalBizFIX      = fixedCostBizFIX + energyCostBizFIX + dispBizFIX;
+        // e la differenza rispetto alla spesa energia inserita
+        var diffBizFIX       = spesaEnergia - totalBizFIX;
+        // Calcolo BUSINESS FLEX
+        var fixedCostBizFLEX = (20 - bizDiscount) * numMesi;
+        var energyCostBizFLEX = kwFatturati * (mediaPUN + 0.030);
+        var dispBizFLEX      = kwFatturati * 0.011;             // dispacciamento
+        // definisci il totale
+        var totalBizFLEX      = fixedCostBizFLEX + energyCostBizFLEX + dispBizFLEX;
+        // e la differenza
+        var diffBizFLEX       = spesaEnergia - totalBizFLEX;
+
+        // Banner diverso per Business non-Fastweb/Vodafone
+        if (!isClienteFastweb) {
+          fullResult = 
+            "<div class='promoBanner'>" +
+            "Diventando cliente Fastweb/Vodafone puoi avere 180€ sconto all'anno (15€ al mese)" +
+            "</div>";
+        }
+
+        // FIX Business
+fullResult +=
+  "<div class='offerResult' style='background-color:" + (diffBizFIX >= 0 ? '#d4f4d4' : '#f4d4d4') + ";'>" +
+    "<h3>Offerta FIX Business</h3>" +                
+    "<div class='detail'>" +
+      "- Costo Fisso: € " + fixedCostBizFIX.toFixed(2) + "<br>" +
+      "- Costo Energia: € " + (energyCostBizFIX + dispBizFIX).toFixed(2) + "<br>" +
+      "- Totale: € " + totalBizFIX.toFixed(2) +
+    "</div>" +
+    (diffBizFIX >= 0 
+      ? "<div class='savings green'>Risparmio di " + diffBizFIX.toFixed(2) + " €</div>"
+      : "<div class='savings red'>Costo superiore di " + Math.abs(diffBizFIX).toFixed(2) + " €</div>"
+    ) +
+    "<div class='offerActions'>" +
+      "<button class='whatsappBtn' onclick=\"sendWhatsApp('businessFix')\">Invia via WhatsApp</button> " +
+      "<button onclick=\"printOfferPdf('businessFix')\">Stampa Preventivo</button>" +
+    "</div>" +
+  "</div>";
+
+        // FLEX Business
+fullResult +=
+  "<div class='offerResult' style='background-color:" + (diffBizFLEX >= 0 ? '#d4f4d4' : '#f4d4d4') + ";'>" +
+    "<h3>Offerta FLEX Business</h3>" +            
+    "<div class='detail'>" +
+      "- Costo Fisso: € " + fixedCostBizFLEX.toFixed(2) + "<br>" +
+      "- Costo Energia: € " + (energyCostBizFLEX + dispBizFLEX).toFixed(2) + "<br>" +
+      "- Totale: € " + totalBizFLEX.toFixed(2) +
+    "</div>" +
+    (diffBizFLEX >= 0 
+      ? "<div class='savings green'>Risparmio di " + diffBizFLEX.toFixed(2) + " €</div>"
+      : "<div class='savings red'>Costo superiore di " + Math.abs(diffBizFLEX).toFixed(2) + " €</div>"
+    ) +
+    "<div class='offerActions'>" +
+      "<button class='whatsappBtn' onclick=\"sendWhatsApp('businessFlex')\">Invia via WhatsApp</button> " +
+      "<button onclick=\"printOfferPdf('businessFlex')\">Stampa Preventivo</button>" +
+    "</div>" +
+  "</div>";
+
+      } else {
+        // DOMESTICO: mantieni inalterato il tuo codice esistente
+        fullResult +=
+          "<div class='offerResult' style='background-color:" + bgColorCanone + ";'>" + resultCanone + "</div>" +
+          "<div class='offerResult' style='background-color:" + bgColorFIX    + ";'>" + resultFIX    + "</div>" +
+          "<div class='offerResult' style='background-color:" + bgColorFLEX   + ";'>" + resultFLEX   + "</div>";
+      }
+
       document.getElementById("risultato").innerHTML = fullResult;
       
       /* --- Genera riepilogo offerte (condizioni standard per tutte le offerte) --- */
@@ -620,54 +769,85 @@
                       "</table>" +
                       "<p style='margin:8px 0 0; color:#000; font-weight:bold;'>Sconto di 10 € sulla tariffa mensile per i clienti Fastweb/Vodafone</p>" +
                       "</td></tr>";
-      riepilogoHTML += "<tr><td>FIX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb/Vodafone) + Energia: €0,204 /kWh</td></tr>";
-      riepilogoHTML += "<tr><td>FLEX</td><td>Costo fisso: €13/mese (o €3/mese se Cliente Fastweb/Vodafone) + Energia: (PUN + €0,051) /kWh</td></tr>";
+      riepilogoHTML += "<tr><td>FIX</td><td>Costo fisso: €13/mese (o €10/mese se Cliente Fastweb/Vodafone) + Energia: €0,204 /kWh</td></tr>";
+      riepilogoHTML += "<tr><td>FLEX</td><td>Costo fisso: €13/mese (o €10/mese se Cliente Fastweb/Vodafone) + Energia: (PUN + €0,051) /kWh</td></tr>";
       riepilogoHTML += "</tbody></table>";
       document.getElementById("riepilogoOfferte").innerHTML = riepilogoHTML;
       
-      /* --- Testi WhatsApp --- */
-      var diffCanoneText = diffPartial < 0 
-                          ? "OFFERTA PIÙ ALTA DI: € " + Math.abs(diffPartial).toFixed(2) 
-                          : "RISPARMIO DI: € " + diffPartial.toFixed(2);
-      whatsappTextCanone = "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n\n" +
-                           "Nome Cliente: " + nome + "\n\n" +
-                           "Offerta: " + recommendedTier + " (Totale costo comprende IVA, oneri di sistema, trasporto, gestione contatore e tutto compreso) (" + mesiSelectedString + ")\n\n" +
-                           (isClienteFastweb
-                             ? "Sconto applicato di 10€ per cliente Fastweb / Vodafone\n\n"
-                             : "") +
-                           "Dettagli Offerta (Basato sul consumo annuo):\n" +
-                           "- Costo Base Annuale (12 mesi): € " + compUsed.baseAnnual.toFixed(2) + "\n" +
-                           "- Extra Annuale (se consumo > " + compUsed.threshold + " kWh): € " + compUsed.extraAnnual.toFixed(2) + "\n" +
-                           "- Totale Spesa Annuale: € " + compUsed.totalAnnual.toFixed(2) + "\n\n" +
-                           "Dettaglio parziale (basato sui mesi selezionati):\n" +
-                           "- Costo Base Parziale (" + numMesi + " mesi): € " + (numMesi * compUsed.monthlyCost).toFixed(2) + "\n" +
-                           "- Differenza rispetto alla Bolletta: € " + diffCanoneText.replace(/[^0-9\.,]/g, "") + "\n\n" +
-                           (availableMargin > 0 ? "Puoi consumare fino a " + availableMargin.toFixed(0) + " kWh in più all'anno senza aumento di prezzo.\n\n" : "") +
-                           (nextTierInfo !== "" ? nextTierInfo + "\n\n" : "") +
-                           "Per ulteriori dettagli o chiarimenti, non esitare a contattarci!";
-      
-      whatsappTextFIX = "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n\n" +
-                           "Nome Cliente: " + nome + "\n\n" +
-                           "Offerta: FASTWEB FIX (" + mesiSelectedString + ")\n\n" +
-                           "Dettagli Offerta:\n" +
-                           "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "\n" +
-                           "- Costo Fisso (per il periodo): € " + fixedCostTextFIX +
-                           (isClienteFastweb ? " (Sconto Fastweb/Vodafone applicato: €10 sui canoni)" : "") + "\n" +
-                           "- Totale Offerta: € " + offFIX.toFixed(2) + " /mese\n\n" +
-                           "Spesa Attuale: € " + spesaEnergia.toFixed(2) + "\n\n" +
-                           "Per ulteriori dettagli, non esitare a contattarci!";
+     // --- Testi WhatsApp e PDF ---
+whatsappTextCanone = 
+  "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n" +
+  "Nome Cliente: " + nome + "\n" +
+  "Offerta: " + recommendedTier +
+    (consumoAnnuo ? " (Consumo annuo: " + consumoAnnuo.toFixed(0) + " kWh)" : "") + "\n\n" +
+  "Dettagli Annuali:\n" +
+  "- Costo Base Annuale: € " + compUsed.baseAnnual.toFixed(2) + "\n" +
+  "- Extra Annuale: € " + compUsed.extraAnnual.toFixed(2) + "\n" +
+  "- Totale Spesa Annuale: € " + compUsed.totalAnnual.toFixed(2) + "\n\n" +
+  (spesaAnnua !== null
+    ? (deltaAnnua >= 0
+        ? "*Risparmio rispetto alla spesa sostenuta: € " + deltaAnnua.toFixed(2) + "*\n\n"
+        : "*Spesa superiore rispetto alla spesa sostenuta: € " + Math.abs(deltaAnnua).toFixed(2) + "*\n\n")
+    : "") +
+  "Dettaglio Parziale (" + numMesi + " mesi):\n" +
+  "- Costo Base Parziale: € " + (compUsed.monthlyCost * numMesi).toFixed(2) + "\n" +
+  "- Totale Bolletta Inserito: € " + totaleBolletta.toFixed(2) + "\n" +
+  (diffPartial >= 0
+    ? "*Risparmio di: € " + diffPartial.toFixed(2) + "*\n"
+    : "*Costo superiore di: € " + Math.abs(diffPartial).toFixed(2) + "*\n") +
+  (availableMargin > 0
+    ? "\nPuoi consumare fino a " + availableMargin.toFixed(0) + " kWh in più allo stesso prezzo.\n"
+    : "") +
+  "\nPer ulteriori dettagli, contattaci!";
 
-      whatsappTextFLEX = "---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----\n\n" +
-                           "Nome Cliente: " + nome + "\n\n" +
-                           "Offerta: FASTWEB FLEX (" + mesiSelectedString + ")\n\n" +
-                           "Dettagli Offerta:\n" +
-                           "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "\n" +
-                           "- Costo Fisso (per il periodo): € " + fixedCostTextFLEX +
-                           (isClienteFastweb ? " (Sconto Fastweb/Vodafone applicato: €10 sui canoni)" : "") + "\n" +
-                           "- Totale Offerta: € " + offFLEX.toFixed(2) + " /mese\n\n" +
-                           "Spesa Attuale: € " + spesaEnergia.toFixed(2) + "\n\n" +
-                           "Per ulteriori dettagli, non esitare a contattarci!";
-    });
+whatsappTextFIX =
+  "---- PREVENTIVO OFFERTA FASTWEB FIX ----\n" +
+  "Nome Cliente: " + nome + "\n" +
+  "Periodo: " + numMesi + " mesi\n\n" +
+  "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "\n" +
+  "- Costo Fisso: € " + fixedCostFIX.toFixed(2) + "\n" +
+  "- Totale Offerta: € " + offFIX.toFixed(2) + "\n\n" +
+  (diffFIX >= 0
+    ? "*Risparmio di: € " + diffFIX.toFixed(2) + "*\n"
+    : "*Costo superiore di: € " + Math.abs(diffFIX).toFixed(2) + "*\n") +
+  "\nPer ulteriori dettagli, contattaci!";
+
+whatsappTextFLEX =
+  "---- PREVENTIVO OFFERTA FASTWEB FLEX ----\n" +
+  "Nome Cliente: " + nome + "\n" +
+  "Periodo: " + numMesi + " mesi\n\n" +
+  "- Spesa Materia Energia: € " + spesaEnergia.toFixed(2) + "\n" +
+  "- Costo Fisso: € " + fixedCostFLEX.toFixed(2) + "\n" +
+  "- Totale Offerta: € " + offFLEX.toFixed(2) + "\n\n" +
+  (diffFLEX >= 0
+    ? "*Risparmio di: € " + diffFLEX.toFixed(2) + "*\n"
+    : "*Costo superiore di: € " + Math.abs(diffFLEX).toFixed(2) + "*\n") +
+  "\nPer ulteriori dettagli, contattaci!";
+
+whatsappTextBizFIX =
+  "---- PREVENTIVO OFFERTA FIX BUSINESS ----\n" +
+  "Nome Cliente: " + nome + "\n" +
+  "- Costo Fisso: € " + fixedCostBizFIX.toFixed(2) + "\n" +
+  "- Costo Energia + Disp.: € " + (energyCostBizFIX + dispBizFIX).toFixed(2) + "\n" +
+  "- Totale: € " + totalBizFIX.toFixed(2) + "\n\n" +
+  (diffBizFIX >= 0
+    ? "*Risparmio di: € " + diffBizFIX.toFixed(2) + "*\n"
+    : "*Costo superiore di: € " + Math.abs(diffBizFIX).toFixed(2) + "*\n") +
+  "\nPer ulteriori dettagli, contattaci!";
+
+whatsappTextBizFLEX =
+  "---- PREVENTIVO OFFERTA FLEX BUSINESS ----\n" +
+  "Nome Cliente: " + nome + "\n" +
+  "- Costo Fisso: € " + fixedCostBizFLEX.toFixed(2) + "\n" +
+  "- Costo Energia + Disp.: € " + (energyCostBizFLEX + dispBizFLEX).toFixed(2) + "\n" +
+  "- Totale: € " + totalBizFLEX.toFixed(2) + "\n\n" +
+  (diffBizFLEX >= 0
+    ? "*Risparmio di: € " + diffBizFLEX.toFixed(2) + "*\n"
+    : "*Costo superiore di: € " + Math.abs(diffBizFLEX).toFixed(2) + "*\n") +
+  "\nPer ulteriori dettagli, contattaci!";
+
+  });
   </script>
 </body>
 </html>
+
