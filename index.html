@@ -480,7 +480,7 @@ function renderRiepilogo(){
   const r=document.getElementById("riepilogoOfferte");
   const isClientR = getRiepilogoIsClient();
 
-  const canoneDom=isClientR?10:13, canoneBiz=isClientR?10:20;
+  const canoneDom=isClientR?7:13, canoneBiz=isClientR?10:20;
 
   const domestic=document.createElement("div");
   domestic.innerHTML=`
@@ -604,7 +604,7 @@ document.getElementById("bollettaForm").addEventListener("submit", function(e){
   const disp = 0.011;
 
   /* DOMESTICO FIX/FLEX */
-  const canoneDom   = isClient ? 10 : 13;
+  const canoneDom   = isClient ? 7 : 13;
   const kwhFixDom   = 0.149 + disp;
   const kwhFlexDom  = mediaPUN + 0.025 + disp;
   const fixedFIX    = canoneDom * numMesi;
