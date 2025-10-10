@@ -184,7 +184,7 @@ const punData=[
   {month:"giu-25",value:0.11178,order:6},
   {month:"lug-25",value:0.11314,order:7},
   {month:"ago-25",value:0.10879,order:8},
-  {month:"set-25",value:0.10908,order:9},
+  {month:"set-25",value:0.10378,order:9},
 ];
 const periodoBox=document.getElementById("periodoCheckboxes");
 punData.forEach(m=>{
@@ -323,52 +323,105 @@ function printOfferPdf(kind){
     y+=CH+8; hRule(10);
   }
 
-  // Sezioni
-  const lines=txt.split("\n");
+    // Sezioni
+    const lines = txt.split("\n");
 
-  // Analisi bolletta
-  let start=lines.findIndex(l=>/^ANALISI BOLLETTA/i.test(l));
-  let end  =lines.findIndex((l,idx)=>idx>start && /^ANALISI ANNUALE/i.test(l));
-  if(start!==-1){
-    sectionHeader("Analisi bolletta (periodo selezionato)");
-    const periodo=extract(/Periodo di riferimento:\s*([^\n]+)/);
-    if(periodo){ kvRow("Periodo di riferimento", periodo); }
-    for(let i=start+1;i<(end===-1?lines.length:end);i++){
-      const line=lines[i].trim(); if(!line) continue;
-      if(/^Risparmio/i.test(line)){ badge(line,true); continue; }
-      if(/superiore/i.test(line)){ badge(line,false); continue; }
-      const parts=line.split(":"); 
-      if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
-      else para([line]);
-    }
-    hRule(8);
+// ============ ANALISI BOLLETTA ============
+// Caso A: testo già con intestazione "ANALISI BOLLETTA" (es. FLAT)
+let start = lines.findIndex(l => /^ANALISI BOLLETTA/i.test(l));
+let end   = lines.findIndex((l, idx) => idx > start && /^ANALISI ANNUALE/i.test(l));
+
+const isFixFlex = (kind === "fix" || kind === "flex" || kind === "businessFix" || kind === "businessFlex");
+
+if (start !== -1) {
+  // — percorso standard (FLAT) —
+  sectionHeader("Analisi bolletta (periodo selezionato)");
+  const periodo = extract(/Periodo di riferimento:\s*([^\n]+)/);
+  if (periodo) { kvRow("Periodo di riferimento", periodo); }
+
+  for (let i = start + 1; i < (end === -1 ? lines.length : end); i++) {
+    const line = lines[i].trim();
+    if (!line || /^NOTA:/.test(line)) continue; // evita di riportare la nota qui
+    if (/^Risparmio/i.test(line)) { badge(line, true); continue; }
+    if (/superiore/i.test(line)) { badge(line, false); continue; }
+    const parts = line.split(":");
+    if (parts.length >= 2) kvRow(parts[0], parts.slice(1).join(":").trim());
+    else para([line]);
+  }
+  hRule(8);
+
+} else if (isFixFlex) {
+  // — percorso FIX/FLEX (Domestico + Business) —
+  // Estraggo i valori dal testo WhatsApp
+  const periodo = extract(/Periodo di riferimento:\s*([^\n]+)/);
+
+  // Es.: "Costo energia inserito (comprensivo quota fissa): € 72,00"
+  const costoInserito = extract(/Costo energia inserito.*?:\s*€\s*([0-9\.\,]+)/i);
+
+  // Es.: "Costo con FASTWEB ENERGIA FLEX" o "BUSINESS FIX"
+  const costoCon = extract(/Costo con FASTWEB ENERGIA (?:BUSINESS\s+)?(FIX|FLEX):?\s*€\s*([0-9\.\,]+)/i);
+  // l'indice 1 è "FIX"/"FLEX", l'indice 2 è l'importo; se non c'è match, prendo un piano di fallback
+  let offertaTipo = "";
+  let costoOfferta = "";
+  {
+    const m = txt.match(/Costo con FASTWEB ENERGIA (?:BUSINESS\s+)?(FIX|FLEX):?\s*€\s*([0-9\.\,]+)/i);
+    if (m) { offertaTipo = m[1].toUpperCase(); costoOfferta = m[2]; }
   }
 
-  // Analisi annuale
-  start=lines.findIndex(l=>/^ANALISI ANNUALE/i.test(l));
-  if(start!==-1){
-    sectionHeader("Analisi annuale");
-    for(let i=start+1;i<lines.length;i++){
-      let line=lines[i].trim(); if(!line) continue;
+  // Es.: "- di cui quota fissa: € 13,00"
+  const quotaFissa  = extract(/di cui quota fissa\s*:\s*€\s*([0-9\.\,]+)/i);
+  const quotaEnergia= extract(/di cui quota energia\s*:\s*€\s*([0-9\.\,]+)/i);
 
-      // --- FIX: "Extra oltre soglia" senza frecce unicode
-      if(/^Extra oltre soglia/i.test(line)){
-        // es. "Extra oltre soglia: 300 kWh → € 135,00"
-        const m=line.match(/Extra oltre soglia:\s*([\d\.\s]+)\s*kWh.*?€\s*([\d\.,]+)/i);
-        const q=(m && m[1]) ? m[1].replace(/\s+/g," ").trim() : "";
-        const eur=(m && m[2]) ? m[2].trim() : "";
-        kvRow("Extra oltre soglia", `${q} kWh -> € ${eur}`);
-        continue;
-      }
-
-      if(/^Totale risparmio annuo/i.test(line)){ badge(line,true); continue; }
-      if(/Spesa annua superiore/i.test(line)){ badge(line,false); continue; }
-
-      const parts=line.split(":");
-      if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
-      else para([line]);
-    }
+  // Risultato (due varianti nel testo WA)
+  // "Risparmio: € 29,98"   oppure   "L’offerta in questo caso è superiore di € 12,34"
+  let risparmioTxt = "";
+  let isOk = true;
+  {
+    const m1 = txt.match(/Risparmio:\s*€\s*([0-9\.\,]+)/i);
+    const m2 = txt.match(/superiore\s+di\s+€\s*([0-9\.\,]+)/i);
+    if (m1) { risparmioTxt = `Risparmio su bolletta di € ${m1[1]}`; isOk = true; }
+    else if (m2) { risparmioTxt = `L’offerta in questo caso è superiore di € ${m2[1]}`; isOk = false; }
   }
+
+  // Stampo sezione
+  sectionHeader("Analisi bolletta (periodo selezionato)");
+  if (periodo)        kvRow("Periodo di riferimento", periodo);
+  if (costoInserito)  kvRow("Costo energia inserito (comprensivo di quota fissa)", `€ ${costoInserito}`);
+  if (costoOfferta)   kvRow(`Costo con FASTWEB ENERGIA ${offertaTipo || ""}`.trim(), `€ ${costoOfferta}`);
+  if (quotaFissa)     kvRow("di cui quota fissa",   `€ ${quotaFissa}`);
+  if (quotaEnergia)   kvRow("di cui quota energia", `€ ${quotaEnergia}`);
+  if (risparmioTxt)   badge(risparmioTxt, isOk);
+
+  hRule(8);
+}
+
+// ============ ANALISI ANNUALE ============
+// Solo se davvero presente nel testo (tipico FLAT). Per FIX/FLEX il testo WA non ha questa sezione.
+start = lines.findIndex(l => /^ANALISI ANNUALE/i.test(l));
+if (start !== -1) {
+  sectionHeader("Analisi annuale");
+  for (let i = start + 1; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line || /^NOTA:/.test(line)) continue; // evita di riportare la nota qui
+
+    // normalizzo "Extra oltre soglia" (senza frecce Unicode)
+    if (/^Extra oltre soglia/i.test(line)) {
+      const m = line.match(/Extra oltre soglia:\s*([\d\.\s]+)\s*kWh.*?€\s*([\d\.,]+)/i);
+      const q = (m && m[1]) ? m[1].replace(/\s+/g," ").trim() : "";
+      const eur = (m && m[2]) ? m[2].trim() : "";
+      kvRow("Extra oltre soglia", `${q} kWh -> € ${eur}`);
+      continue;
+    }
+
+    if (/^Totale risparmio annuo/i.test(line)) { badge(line, true); continue; }
+    if (/Spesa annua superiore/i.test(line))   { badge(line, false); continue; }
+
+    const parts = line.split(":");
+    if (parts.length >= 2) kvRow(parts[0], parts.slice(1).join(":").trim());
+    else para([line]);
+  }
+}
+
 
   // Header per FIX/FLEX/Business quando non c'è card
   if(kind!=="canone"){
@@ -874,4 +927,6 @@ drawEnergiaFields();
 </script>
 </body>
 </html>
+
+
 
