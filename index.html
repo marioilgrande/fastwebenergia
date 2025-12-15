@@ -154,6 +154,7 @@
               <option value="3">3 kW</option>
               <option value="4.5">4,5 kW</option>
               <option value="6">6 kW</option>
+              <option value="altro">Altro (oltre 6 kW)</option>
             </select>
           </div>
 
@@ -365,7 +366,7 @@ function printOfferPdf(kind){
       const line=lines[i].trim(); if(!line || /^NOTA:/.test(line)) continue;
       if(/^Risparmio/i.test(line)){ badge(line,true); continue; }
       if(/superiore/i.test(line)){ badge(line,false); continue; }
-      const parts=line.split(":"); 
+      const parts=line.split(":");
       if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
       else para([line]);
     }
@@ -641,11 +642,20 @@ document.getElementById("bollettaForm").addEventListener("submit", function(e){
 
   const kwPeriodo    = parseFloat(document.getElementById("kwFatturati").value) || 0;
   const consumoAnnuo = parseFloat(document.getElementById("consumoAnnuo").value) || 0;
-  const potenza      = parseFloat(document.getElementById("potenza").value);
+
+  /* === MODIFICA: gestione potenza "Altro (oltre 6 kW)" === */
+  const potenzaSel = document.getElementById("potenza").value;      // "3" | "4.5" | "6" | "altro"
+  const isPowerOther = (potenzaSel === "altro");
+  const potenza = isPowerOther ? null : parseFloat(potenzaSel);
+
   const totaleBolletta = parseFloat(document.getElementById("totaleBolletta").value) || 0;
 
   const isClient = document.getElementById("clienteFastweb").checked;
   const isBiz    = document.getElementById("clienteBusiness").checked;
+
+  // Regola richiesta:
+  // - se potenza = "altro": mostra SOLO FIX/FLEX (domestico se !business, business se business)
+  const needsFlat = (!isBiz && !isPowerOther);
 
   let spesaEnergia = 0;
   if(needsSplitFields()){
@@ -684,28 +694,37 @@ document.getElementById("bollettaForm").addEventListener("submit", function(e){
   const totalBizFLEX  = fixedBizFLEX + energyBizFLEX;
   const diffBizFLEX   = spesaEnergia - totalBizFLEX;
 
-  /* CANONE (FASCE) */
-  const optionsAll = [0,1,2].map(t=>computeAnnualForTier(consumoAnnuo, potenza, t, isClient)).sort((a,b)=>a.totalAnnual - b.totalAnnual);
-  const best       = optionsAll[0];
-  const secondBest = optionsAll[1];
-  const altSaving  = secondBest ? (secondBest.totalAnnual - best.totalAnnual) : 0;
-  const partialBase = best.monthly * numMesi;
-  const diffPartial = totaleBolletta - partialBase;
-
-  const spesaAnnuaInput   = parseFloat(document.getElementById("spesaAnnua")?.value || "0");
-  const hasSpesaAnnua     = !isNaN(spesaAnnuaInput) && spesaAnnuaInput > 0;
-  const deltaAnnuaVsInput = hasSpesaAnnua ? (spesaAnnuaInput - best.totalAnnual) : null;
-
-  let flatBG;
-  if (isBiz) flatBG = "";
-  else if (hasSpesaAnnua) flatBG = (deltaAnnuaVsInput >= 0) ? "green-bg" : "red-bg";
-  else flatBG = (diffPartial >= 0) ? "green-bg" : "red-bg";
-
   function money(n){ return (n||0).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2}); }
 
+  /* CANONE (FASCE) – solo se consentito (no business + potenza != "altro") */
+  let best=null, secondBest=null, altSaving=0, partialBase=0, diffPartial=0;
+  let spesaAnnuaInput=0, hasSpesaAnnua=false, deltaAnnuaVsInput=null;
+  let flatBG="", listinoMensile=0;
+
+  if(needsFlat){
+    const optionsAll = [0,1,2].map(t=>computeAnnualForTier(consumoAnnuo, potenza, t, isClient)).sort((a,b)=>a.totalAnnual - b.totalAnnual);
+    best       = optionsAll[0];
+    secondBest = optionsAll[1];
+    altSaving  = secondBest ? (secondBest.totalAnnual - best.totalAnnual) : 0;
+    partialBase = best.monthly * numMesi;
+    diffPartial = totaleBolletta - partialBase;
+
+    spesaAnnuaInput   = parseFloat(document.getElementById("spesaAnnua")?.value || "0");
+    hasSpesaAnnua     = !isNaN(spesaAnnuaInput) && spesaAnnuaInput > 0;
+    deltaAnnuaVsInput = hasSpesaAnnua ? (spesaAnnuaInput - best.totalAnnual) : null;
+
+    if (hasSpesaAnnua) flatBG = (deltaAnnuaVsInput >= 0) ? "green-bg" : "red-bg";
+    else flatBG = (diffPartial >= 0) ? "green-bg" : "red-bg";
+
+    listinoMensile = LISTINO[String(potenza)][best.tierIdx];
+  }
+
+  /* =========================
+     RENDER RISULTATI
+     ========================= */
   let fullResult = "";
-  if(!isBiz){
-    const listinoMensile = LISTINO[String(potenza)][best.tierIdx];
+
+  if(needsFlat){
     let flatHTML = `
       <h3 class="resultTitle">Offerta FLAT (Canone)</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
@@ -826,20 +845,30 @@ document.getElementById("bollettaForm").addEventListener("submit", function(e){
       `<div class="offerResult ${diffBizFIX>=0?'green-bg':'red-bg'}">${bizFixHTML}</div>` +
       `<div class="offerResult ${diffBizFLEX>=0?'green-bg':'red-bg'}">${bizFlexHTML}</div>`;
   }else{
+    // Se potenza "altro": qui fullResult sarà vuoto (FLAT esclusa), ma FIX/FLEX domestici restano visibili.
     document.getElementById("risultato").innerHTML =
       fullResult +
       `<div class="offerResult ${fixBG}">${fixHTML}</div>` +
       `<div class="offerResult ${flexBG}">${flexHTML}</div>`;
   }
 
-  /* === Testi WhatsApp / PDF === */
-  const spesaAnnua=parseFloat(document.getElementById("spesaAnnua")?.value||"0");
-  const extraRow=best.extraKwh>0?`Extra oltre soglia: ${best.extraKwh.toLocaleString("it-IT")} kWh → € ${money(best.extraAnnual)}\n`:"";
-  const marginRow=best.marginKwh>0?`Margine entro soglia: ~${best.marginKwh.toLocaleString("it-IT")} kWh/anno\nRimborso potenziale: € ${money(best.potentialRefund)}\n`:"";
-  const altRow=(secondBest&&(secondBest.totalAnnual-best.totalAnnual)>0)?`Risparmio vs alternativa (${TIER_NAMES[secondBest.tierIdx]}): € ${money(secondBest.totalAnnual-best.totalAnnual)}\n`:"";
-  let annualDeltaRow=""; if(!isNaN(spesaAnnua)&&spesaAnnua>0){const d=spesaAnnua-best.totalAnnual; annualDeltaRow=d>=0?`Totale risparmio annuo: € ${money(d)}\n`:`Spesa annua superiore: € ${money(Math.abs(d))}\n`;}
+  /* =========================
+     Testi WhatsApp / PDF
+     ========================= */
+  const closingNote =
+`NOTA:
+Il presente calcolo è indicativo e si riferisce solo alle spese di energia per il periodo selezionato. Non tiene conto di IVA, tasse, oneri di sistema, canone RAI, trasporto, gestione contatore e altre voci di stato.
+Per ulteriori dettagli, contattaci!`;
 
-  wCanone =
+  // CANONE (solo se generato)
+  if(needsFlat){
+    const spesaAnnua=parseFloat(document.getElementById("spesaAnnua")?.value||"0");
+    const extraRow=best.extraKwh>0?`Extra oltre soglia: ${best.extraKwh.toLocaleString("it-IT")} kWh → € ${money(best.extraAnnual)}\n`:"";
+    const marginRow=best.marginKwh>0?`Margine entro soglia: ~${best.marginKwh.toLocaleString("it-IT")} kWh/anno\nRimborso potenziale: € ${money(best.potentialRefund)}\n`:"";
+    const altRow=(secondBest&&(secondBest.totalAnnual-best.totalAnnual)>0)?`Risparmio vs alternativa (${TIER_NAMES[secondBest.tierIdx]}): € ${money(secondBest.totalAnnual-best.totalAnnual)}\n`:"";
+    let annualDeltaRow=""; if(!isNaN(spesaAnnua)&&spesaAnnua>0){const d=spesaAnnua-best.totalAnnual; annualDeltaRow=d>=0?`Totale risparmio annuo: € ${money(d)}\n`:`Spesa annua superiore: € ${money(Math.abs(d))}\n`;}
+
+    wCanone =
 `---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----
 Nome Cliente: ${nome}
 
@@ -861,12 +890,11 @@ ${extraRow}Totale annuale: € ${money(best.totalAnnual)}
 ${altRow}${marginRow}${(!isNaN(spesaAnnua)&&spesaAnnua>0)?`Spesa annua inserita: € ${money(spesaAnnua)}\n`:""}${annualDeltaRow}
 Il presente calcolo è da intendersi come totale bolletta. Include quindi anche iva, oneri di sistema e di trasporto, a eccezione del canone rai che è a parte.
 Per ulteriori dettagli, contattaci!`;
+  } else {
+    wCanone = "";
+  }
 
-  const closingNote =
-`NOTA:
-Il presente calcolo è indicativo e si riferisce solo alle spese di energia per il periodo selezionato. Non tiene conto di IVA, tasse, oneri di sistema, canone RAI, trasporto, gestione contatore e altre voci di stato.
-Per ulteriori dettagli, contattaci!`;
-
+  // FIX/FLEX DOMESTICO
   wFIX =
 `---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----
 Nome Cliente: ${nome}
@@ -897,6 +925,7 @@ ${diffFLEX>=0 ? "Risparmio: € "+money(diffFLEX) : "L’offerta in questo caso 
 
 ${closingNote}`;
 
+  // FIX/FLEX BUSINESS
   wBizFIX =
 `---- PREVENTIVO OFFERTA FIX BUSINESS ----
 Nome Cliente: ${nome}
@@ -927,10 +956,8 @@ ${closingNote}`;
   const banner = document.getElementById('resultBanner');
   banner.style.display = 'block';
   banner.classList.remove('fadeInUp'); // reset animazione
-  // forza reflow per riavviare l'animazione
-  void banner.offsetWidth;
+  void banner.offsetWidth; // reflow
   banner.classList.add('fadeInUp');
-
   banner.scrollIntoView({behavior:'smooth', block:'start'});
 });
 
