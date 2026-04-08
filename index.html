@@ -144,7 +144,6 @@
     gap:10px;
   }
 
-  /* NAV FLAT */
   .flatNavWrap{
     margin:14px 0;
   }
@@ -199,13 +198,8 @@
       grid-template-columns:1fr;
       gap:10px;
     }
-    .flatNavBtnsMobile{
-      display:flex;
-      gap:10px;
-    }
     .flatNavBtn{
       min-height:48px;
-      flex:1;
     }
     .flatSwipeHint{display:block}
   }
@@ -312,16 +306,14 @@
   </div>
 
 <script>
-/* =========================
-   Dati PUN e mesi
-   ========================= */
 const punData=[
-  {month:"set-25",value:0.10908,order:9},
   {month:"ott-25",value:0.11100,order:10},
   {month:"nov-25",value:0.11700,order:11},
   {month:"dic-25",value:0.11500,order:12},
   {month:"gen-26",value:0.13300,order:13},
   {month:"feb-26",value:0.11441,order:14},
+  {month:"mar-26",value:0.14340,order:15},
+
 ];
 const periodoBox=document.getElementById("periodoCheckboxes");
 punData.forEach(m=>{
@@ -339,10 +331,7 @@ punData.forEach(m=>{
   periodoBox.append(wrap);
 });
 
-/* =========================
-   Variabili globali
-   ========================= */
-let wCanone="",wFIX="",wFLEX="",wBizFIX="",wBizFLEX="";
+let wFIX="",wFLEX="",wBizFIX="",wBizFLEX="";
 let currentFlatAnalysis = null;
 
 const TIER_NAMES=["START","LIGHT","PRO","MAXI","ULTRA"];
@@ -353,17 +342,22 @@ const POWER_STEP_PRICE=5;
 const TIER_EXTRA=[0.30,0.27,0.21,0.20,0.13];
 const TIER_REFUND=[0.30,0.27,0.21,0.20,0.13];
 const ULTRA_TOLERANCE=500;
-const BUSINESS_EXPIRY_TEXT = "Scadenza offerta: 7 aprile 2026";
 
-/* =========================
-   Helpers
-   ========================= */
+const DOM_FIX_RAW = 0.210;
+const DOM_FLEX_SPREAD = 0.026;
+const DOM_CANONE_LISTINO = 13;
+const DOM_CANONE_CONV = 8;
+
+const BIZ_FIX_RAW = 0.220;
+const BIZ_FLEX_SPREAD = 0.030;
+const BIZ_CANONE_LISTINO = 20;
+const BIZ_CANONE_CONV = 10;
+
+const OFFER_EXPIRY_TEXT = "Scadenza offerta: 25 aprile";
+const OFFER_VALIDITY_TEXT = "Validità offerta: 12 mesi";
+
 function money(n){
   return (n||0).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
-}
-function sendWhatsApp(kind){
-  const map={canone:wCanone,fix:wFIX,flex:wFLEX,businessFix:wBizFIX,businessFlex:wBizFLEX};
-  window.open("https://wa.me/?text="+encodeURIComponent(map[kind]||""),"_blank");
 }
 function getPowerIncrement(potenza){
   if(String(potenza)==="3") return 0;
@@ -411,11 +405,104 @@ function computeAnnualForTier(consumo, potenza, tierIdx, isClient){
 }
 
 /* =========================
-   PDF
+   TESTO FLAT DINAMICO
+   ========================= */
+function buildFlatOfferTextForTier(tierIdx){
+  if(!currentFlatAnalysis) return "";
+  const data = currentFlatAnalysis;
+  const opt = data.options.find(o => o.tierIdx === tierIdx);
+  if(!opt) return "";
+
+  const listinoMensile = getListinoMonthlyByPower(opt.tierIdx, data.potenzaSel);
+  const clienteMensile = getClientMonthlyByPower(opt.tierIdx, data.potenzaSel);
+  const extraRateTxt = opt.extraRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const refundRateTxt = opt.refundRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const extraRow = opt.extraKwh>0 ? `Extra oltre soglia: ${opt.extraKwh.toLocaleString("it-IT")} kWh → € ${money(opt.extraAnnual)}\n` : "";
+  const refundRow = opt.marginKwh>0 ? `Rimborso sotto soglia: ${opt.marginKwh.toLocaleString("it-IT")} kWh → - € ${money(opt.potentialRefund)}\n` : "";
+  const periodBase = opt.monthly * data.numMesi;
+  const periodDelta = data.totaleBolletta - periodBase;
+
+  const sortedOthers = data.options
+    .filter(o => o.tierIdx !== opt.tierIdx)
+    .sort((a,b)=>a.totalAnnual-b.totalAnnual);
+
+  let compareRow = "";
+  if(opt.tierIdx === data.bestTierIdx){
+    const nextBest = sortedOthers[0];
+    if(nextBest){
+      compareRow = `Risparmio vs alternativa (${TIER_NAMES[nextBest.tierIdx]}): € ${money(nextBest.totalAnnual - opt.totalAnnual)}\n`;
+    }
+  } else {
+    const best = data.options.find(o => o.tierIdx === data.bestTierIdx);
+    const diffVsBest = opt.totalAnnual - best.totalAnnual;
+    compareRow = `Differenza vs fascia consigliata (${TIER_NAMES[best.tierIdx]}): ${diffVsBest >= 0 ? "€ " + money(diffVsBest) : "- € " + money(Math.abs(diffVsBest))}\n`;
+  }
+
+  let annualDeltaRow = "";
+  if(data.hasSpesaAnnua){
+    const d = data.spesaAnnuaInput - opt.totalAnnual;
+    annualDeltaRow = d>=0
+      ? `Totale risparmio annuo: € ${money(d)}\n`
+      : `Spesa annua superiore: € ${money(Math.abs(d))}\n`;
+  }
+
+  return `---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----
+Nome Cliente: ${data.nome}
+
+OFFERTA FLAT ${TIER_NAMES[opt.tierIdx]}
+Periodo di riferimento: ${data.periodoTxt}
+Fascia visualizzata: ${TIER_NAMES[opt.tierIdx]}
+Costo Mensile Fascia: € ${money(opt.monthly)} ${data.isClient ? `(sconto convergenza cliente Fastweb/Vodafone: -€${money(CONVERGENCE_DISCOUNT)} - listino € ${money(listinoMensile)})` : `(listino - clienti Fastweb/Vodafone: € ${money(clienteMensile)})`}
+Soglia fascia: fino a ${opt.threshold.toLocaleString("it-IT")} kWh/anno
+${opt.tierIdx===4 ? `Tolleranza fascia ULTRA: fino a ${(opt.threshold + ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno\n` : ""}Extra oltre soglia: € ${extraRateTxt}/kWh
+Restituzione consumi non utilizzati: € ${refundRateTxt}/kWh
+Validità offerta: 5 anni
+Potenza contatore: ${data.potenzaValueText}
+
+ANALISI BOLLETTA
+Totale Bolletta inserito: € ${money(data.totaleBolletta)}
+Spesa base (canone × ${data.numMesi}): € ${money(periodBase)}
+${periodDelta>=0 ? "Risparmio su bolletta di € "+money(periodDelta) : "L’offerta in questo caso è superiore di € "+money(Math.abs(periodDelta))}
+
+ANALISI ANNUALE
+Consumo annuale inserito: ${data.consumoAnnuo.toLocaleString("it-IT")} kWh
+Annuale fascia (base): € ${money(opt.baseAnnual)}
+${extraRow}${refundRow}Totale annuale (canone + extra - rimborso): € ${money(opt.totalAnnual)}
+${compareRow}${data.hasSpesaAnnua ? `Spesa annua inserita: € ${money(data.spesaAnnuaInput)}\n` : ""}${annualDeltaRow}
+Il presente calcolo è da intendersi come totale bolletta. Include quindi anche iva, oneri di sistema e di trasporto, a eccezione del canone rai che è a parte.
+Per ulteriori dettagli, contattaci!`;
+}
+
+function getCurrentFlatOfferText(){
+  if(!currentFlatAnalysis) return "";
+  return buildFlatOfferTextForTier(currentFlatAnalysis.currentTierIdx);
+}
+
+/* =========================
+   WhatsApp dinamico
+   ========================= */
+function sendWhatsApp(kind){
+  let txt = "";
+  if(kind === "canone"){
+    txt = getCurrentFlatOfferText();
+  } else {
+    const map={fix:wFIX,flex:wFLEX,businessFix:wBizFIX,businessFlex:wBizFLEX};
+    txt = map[kind] || "";
+  }
+  window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank");
+}
+
+/* =========================
+   PDF dinamico
    ========================= */
 function printOfferPdf(kind){
-  const map = { canone:wCanone, fix:wFIX, flex:wFLEX, businessFix:wBizFIX, businessFlex:wBizFLEX };
-  const txt = (map[kind] || "").trim();
+  let txt = "";
+  if(kind === "canone"){
+    txt = getCurrentFlatOfferText().trim();
+  } else {
+    const map = { fix:wFIX, flex:wFLEX, businessFix:wBizFIX, businessFlex:wBizFLEX };
+    txt = (map[kind] || "").trim();
+  }
   if(!txt){ alert("Prima genera il preventivo."); return; }
 
   const { jsPDF } = window.jspdf;
@@ -492,7 +579,7 @@ function printOfferPdf(kind){
   hRule(10);
 
   if(kind==="canone"){
-    const fascia=extract(/Fascia consigliata:\s*([A-Z]+)/);
+    const fascia=extract(/Fascia visualizzata:\s*([A-Z]+)/) || extract(/Fascia consigliata:\s*([A-Z]+)/);
     const prezzo=extract(/Costo Mensile Fascia:\s*€\s*([0-9\.,]+)/);
     const listino=extract(/listino\s*€\s*([0-9\.,]+)/i);
     const potenzaK=extract(/Potenza contatore:\s*([0-9\.,]+)\s*kW/i);
@@ -614,6 +701,11 @@ function printOfferPdf(kind){
         kvRow("Rimborso sotto soglia", `${q} kWh -> € ${eur}`);
         continue;
       }
+      if(/^Scadenza offerta/i.test(line) || /^Validità offerta/i.test(line)){
+        const parts=line.split(":");
+        if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
+        continue;
+      }
       if(/^Totale risparmio annuo/i.test(line)){ badge(line,true); continue; }
       if(/Spesa annua superiore/i.test(line)){ badge(line,false); continue; }
 
@@ -640,13 +732,16 @@ function printOfferPdf(kind){
     para(lines.slice(noteStart));
   }
 
-  const nameMap={canone:"FLAT",fix:"FIX_DOMESTICO",flex:"FLEX_DOMESTICO",businessFix:"FIX_BUSINESS",businessFlex:"FLEX_BUSINESS"};
-  doc.save(`Preventivo_${nameMap[kind]||kind}.pdf`);
+  let filename = kind;
+  if(kind === "canone" && currentFlatAnalysis){
+    filename = `FLAT_${TIER_NAMES[currentFlatAnalysis.currentTierIdx]}`;
+  } else {
+    const nameMap={fix:"FIX_DOMESTICO",flex:"FLEX_DOMESTICO",businessFix:"FIX_BUSINESS",businessFlex:"FLEX_BUSINESS"};
+    filename = nameMap[kind] || kind;
+  }
+  doc.save(`Preventivo_${filename}.pdf`);
 }
 
-/* =========================
-   Modal warning FLAT
-   ========================= */
 const flatWarnModal = document.getElementById("flatWarnModal");
 const flatWarnOkBtn = document.getElementById("flatWarnOkBtn");
 let pendingAnalyzeAfterWarning = false;
@@ -673,9 +768,6 @@ flatWarnOkBtn.addEventListener("click",()=>{
   }
 });
 
-/* =========================
-   Riepilogo
-   ========================= */
 let riepilogoPower="3";
 let riepilogoIsClient = null;
 
@@ -759,7 +851,8 @@ function renderRiepilogo(){
   const r=document.getElementById("riepilogoOfferte");
   const isClientR = getRiepilogoIsClient();
 
-  const canoneDom=isClientR?8:13, canoneBiz=isClientR?5:20;
+  const canoneDom=isClientR?DOM_CANONE_CONV:DOM_CANONE_LISTINO;
+  const canoneBiz=isClientR?BIZ_CANONE_CONV:BIZ_CANONE_LISTINO;
 
   const domestic=document.createElement("div");
   domestic.innerHTML=`
@@ -771,10 +864,12 @@ function renderRiepilogo(){
     </div>
     <div class="offerResult" style="margin-top:10px">
       <div class="sectionTitle">FIX Domestico</div>
-      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,149/kWh</strong> (+ disp. €0,011 → <strong>0,160</strong> €/kWh)</div>
+      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,210/kWh</strong> (+ disp. €0,011 → <strong>0,221</strong> €/kWh)</div>
+      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
       <div class="divider"></div>
       <div class="sectionTitle">FLEX Domestico</div>
-      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,025/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,036</strong> €/kWh)</div>
+      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,026/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,037</strong> €/kWh)</div>
+      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
     </div>
     <div class="violetSeparator"></div>`;
   r.append(domestic);
@@ -795,12 +890,12 @@ function renderRiepilogo(){
     </div>
     <div class="offerResult" style="margin-top:10px">
       <div class="sectionTitle">FIX Business</div>
-      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,155/kWh</strong> (+ disp. €0,011 → <strong>0,166</strong> €/kWh)</div>
-      <div class="hint" style="margin-top:6px">${BUSINESS_EXPIRY_TEXT}</div>
+      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,220/kWh</strong> (+ disp. €0,011 → <strong>0,231</strong> €/kWh)</div>
+      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
       <div class="divider"></div>
       <div class="sectionTitle">FLEX Business</div>
-      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,037/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,048</strong> €/kWh)</div>
-      <div class="hint" style="margin-top:6px">${BUSINESS_EXPIRY_TEXT}</div>
+      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,030/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,041</strong> €/kWh)</div>
+      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
     </div>`;
   r.append(business);
 
@@ -826,9 +921,6 @@ document.getElementById("toggleRiepilogoBtn").addEventListener("click",()=>{
   }
 });
 
-/* =========================
-   Regole FLAT
-   ========================= */
 function shouldWarnFlat(consumoAnnuo, isBiz, potenzaSel){
   if(isBiz) return false;
   if(potenzaSel === "altro") return false;
@@ -839,9 +931,6 @@ function shouldBlockFlat(consumoAnnuo, isBiz){
   return (consumoAnnuo > 5000);
 }
 
-/* =========================
-   NAV FLAT
-   ========================= */
 function buildFlatCardHTML(data, tierIdxToShow){
   const opt = data.options.find(o => o.tierIdx === tierIdxToShow);
   const best = data.options.find(o => o.tierIdx === data.bestTierIdx);
@@ -890,7 +979,7 @@ function buildFlatCardHTML(data, tierIdxToShow){
       <h3 class="resultTitle">Offerta FLAT ${TIER_NAMES[opt.tierIdx]}</h3>
       <p class="periodoRef">Periodo di riferimento: ${data.periodoTxt}</p>
 
-      <div class="kv"><div>Fascia consigliata</div><div><strong>${TIER_NAMES[opt.tierIdx]}</strong></div></div>
+      <div class="kv"><div>Fascia visualizzata</div><div><strong>${TIER_NAMES[opt.tierIdx]}</strong></div></div>
       <div class="kv"><div>Costo Mensile Fascia</div>
         <div><strong>€ ${money(opt.monthly)}</strong>
         ${data.isClient
@@ -1031,9 +1120,6 @@ function mountFlatNavigator(data){
   renderCurrentFlatAnalysis();
 }
 
-/* =========================
-   Analisi principale
-   ========================= */
 document.getElementById("bollettaForm").addEventListener("submit", function(e){
   e.preventDefault();
   analyzeBolletta(false);
@@ -1069,6 +1155,7 @@ function analyzeBolletta(skipWarning){
   const kwPeriodo = parseFloat(document.getElementById("kwFatturati").value) || 0;
   const isPowerOther = (potenzaSel === "altro");
   const potenza = isPowerOther ? null : parseFloat(potenzaSel);
+  const potenzaValueText = isPowerOther ? "oltre 6 kW" : `${potenza.toString().replace(".",",")} kW`;
   const totaleBolletta = parseFloat(document.getElementById("totaleBolletta").value) || 0;
   const isClient = document.getElementById("clienteFastweb").checked;
 
@@ -1081,9 +1168,9 @@ function analyzeBolletta(skipWarning){
 
   const disp = 0.011;
 
-  const canoneDom   = isClient ? 8 : 13;
-  const kwhFixDom   = 0.149 + disp;
-  const kwhFlexDom  = mediaPUN + 0.025 + disp;
+  const canoneDom   = isClient ? DOM_CANONE_CONV : DOM_CANONE_LISTINO;
+  const kwhFixDom   = DOM_FIX_RAW + disp;
+  const kwhFlexDom  = mediaPUN + DOM_FLEX_SPREAD + disp;
   const fixedFIX    = canoneDom * numMesi;
   const energyFIX   = kwPeriodo * kwhFixDom;
   const totalFIX    = fixedFIX + energyFIX;
@@ -1093,9 +1180,9 @@ function analyzeBolletta(skipWarning){
   const diffFIX     = spesaEnergia - totalFIX;
   const diffFLEX    = spesaEnergia - totalFLEX;
 
-  const canoneBiz   = isClient ? 5 : 20;
-  const kwhFixBiz   = 0.155 + disp;
-  const kwhFlexBiz  = mediaPUN + 0.037 + disp;
+  const canoneBiz   = isClient ? BIZ_CANONE_CONV : BIZ_CANONE_LISTINO;
+  const kwhFixBiz   = BIZ_FIX_RAW + disp;
+  const kwhFlexBiz  = mediaPUN + BIZ_FLEX_SPREAD + disp;
   const fixedBizFIX   = canoneBiz * numMesi;
   const energyBizFIX  = kwPeriodo * kwhFixBiz;
   const totalBizFIX   = fixedBizFIX + energyBizFIX;
@@ -1129,53 +1216,10 @@ function analyzeBolletta(skipWarning){
       totaleBolletta,
       isClient,
       potenzaSel,
+      potenzaValueText,
       hasSpesaAnnua,
       spesaAnnuaInput
     });
-
-    const best = optionsAll.find(o=>o.tierIdx===bestTierIdx);
-    const listinoMensile = getListinoMonthlyByPower(best.tierIdx, potenzaSel);
-    const clienteMensile = getClientMonthlyByPower(best.tierIdx, potenzaSel);
-    const extraRateTxt = best.extraRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
-    const refundRateTxt = best.refundRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
-    const extraRow=best.extraKwh>0?`Extra oltre soglia: ${best.extraKwh.toLocaleString("it-IT")} kWh → € ${money(best.extraAnnual)}\n`:"";
-    const refundRow=best.marginKwh>0?`Rimborso sotto soglia: ${best.marginKwh.toLocaleString("it-IT")} kWh → - € ${money(best.potentialRefund)}\n`:"";
-    const nextBest = optionsAll.filter(o=>o.tierIdx!==best.tierIdx).sort((a,b)=>a.totalAnnual-b.totalAnnual)[0];
-    const altRow=nextBest?`Risparmio vs alternativa (${TIER_NAMES[nextBest.tierIdx]}): € ${money(nextBest.totalAnnual-best.totalAnnual)}\n`:"";
-    let annualDeltaRow="";
-    if(hasSpesaAnnua){
-      const d=spesaAnnuaInput-best.totalAnnual;
-      annualDeltaRow=d>=0?`Totale risparmio annuo: € ${money(d)}\n`:`Spesa annua superiore: € ${money(Math.abs(d))}\n`;
-    }
-
-    wCanone =
-`---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----
-Nome Cliente: ${nome}
-
-OFFERTA FLAT ${TIER_NAMES[best.tierIdx]}
-Periodo di riferimento: ${periodoTxt}
-Fascia consigliata: ${TIER_NAMES[best.tierIdx]}
-Costo Mensile Fascia: € ${money(best.monthly)} ${isClient ? `(sconto convergenza cliente Fastweb/Vodafone: -€${money(CONVERGENCE_DISCOUNT)} - listino € ${money(listinoMensile)})` : `(listino - clienti Fastweb/Vodafone: € ${money(clienteMensile)})`}
-Soglia fascia: fino a ${best.threshold.toLocaleString("it-IT")} kWh/anno
-${best.tierIdx===4 ? `Tolleranza fascia ULTRA: fino a ${(best.threshold + ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno\n` : ""}Extra oltre soglia: € ${extraRateTxt}/kWh
-Restituzione consumi non utilizzati: € ${refundRateTxt}/kWh
-Validità offerta: 5 anni
-Potenza contatore: ${potenza.toString().replace('.', ',')} kW
-
-ANALISI BOLLETTA
-Totale Bolletta inserito: € ${money(totaleBolletta)}
-Spesa base (canone × ${numMesi}): € ${money(best.monthly * numMesi)}
-${(totaleBolletta - (best.monthly * numMesi))>=0 ? "Risparmio su bolletta di € "+money(totaleBolletta - (best.monthly * numMesi)) : "L’offerta in questo caso è superiore di € "+money(Math.abs(totaleBolletta - (best.monthly * numMesi)))}
-
-ANALISI ANNUALE
-Consumo annuale inserito: ${consumoAnnuo.toLocaleString("it-IT")} kWh
-Annuale fascia (base): € ${money(best.baseAnnual)}
-${extraRow}${refundRow}Totale annuale (canone + extra - rimborso): € ${money(best.totalAnnual)}
-${altRow}${hasSpesaAnnua?`Spesa annua inserita: € ${money(spesaAnnuaInput)}\n`:""}${annualDeltaRow}
-Il presente calcolo è da intendersi come totale bolletta. Include quindi anche iva, oneri di sistema e di trasporto, a eccezione del canone rai che è a parte.
-Per ulteriori dettagli, contattaci!`;
-  } else {
-    wCanone = "";
   }
 
   const fixCard = document.createElement("div");
@@ -1190,6 +1234,8 @@ Per ulteriori dettagli, contattaci!`;
       <div class="kv"><div>Costo con FASTWEB ENERGIA FIX</div><div>€ ${money(totalFIX)}</div></div>
       <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedFIX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFIX)}</div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFIX)}</div>`
                    : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFIX))}</div>`}
       <div class="offerActions">
@@ -1212,6 +1258,8 @@ Per ulteriori dettagli, contattaci!`;
       <div class="kv"><div>Costo con FASTWEB ENERGIA FLEX</div><div>€ ${money(totalFLEX)}</div></div>
       <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedFLEX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFLEX)}</div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFLEX)}</div>`
                     : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFLEX))}</div>`}
       <div class="offerActions">
@@ -1235,7 +1283,8 @@ Per ulteriori dettagli, contattaci!`;
         <div class="kv"><div>Costo con FASTWEB ENERGIA BUSINESS FIX</div><div>€ ${money(totalBizFIX)}</div></div>
         <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedBizFIX)}</div></div>
         <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyBizFIX)}</div></div>
-        <div class="kv"><div>Scadenza offerta</div><div><strong>7 aprile 2026</strong></div></div>
+        <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
+        <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
         ${diffBizFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffBizFIX)}</div>`
                         : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffBizFIX))}</div>`}
         <div class="offerActions">
@@ -1258,7 +1307,8 @@ Per ulteriori dettagli, contattaci!`;
         <div class="kv"><div>Costo con FASTWEB ENERGIA BUSINESS FLEX</div><div>€ ${money(totalBizFLEX)}</div></div>
         <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedBizFLEX)}</div></div>
         <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyBizFLEX)}</div></div>
-        <div class="kv"><div>Scadenza offerta</div><div><strong>7 aprile 2026</strong></div></div>
+        <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
+        <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
         ${diffBizFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffBizFLEX)}</div>`
                          : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffBizFLEX))}</div>`}
         <div class="offerActions">
@@ -1289,6 +1339,8 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con FASTWEB ENERGIA FIX: € ${money(totalFIX)}
 - di cui quota fissa: € ${money(fixedFIX)}
 - di cui quota energia: € ${money(energyFIX)}
+Scadenza offerta: 25 aprile
+Validità offerta: 12 mesi
 ${diffFIX>=0 ? "Risparmio: € "+money(diffFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFIX))}
 
 ${closingNote}`;
@@ -1307,6 +1359,8 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con FASTWEB ENERGIA FLEX: € ${money(totalFLEX)}
 - di cui quota fissa: € ${money(fixedFLEX)}
 - di cui quota energia: € ${money(energyFLEX)}
+Scadenza offerta: 25 aprile
+Validità offerta: 12 mesi
 ${diffFLEX>=0 ? "Risparmio: € "+money(diffFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFLEX))}
 
 ${closingNote}`;
@@ -1324,7 +1378,8 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con FASTWEB ENERGIA BUSINESS FIX: € ${money(totalBizFIX)}
 - di cui quota fissa: € ${money(fixedBizFIX)}
 - di cui quota energia: € ${money(energyBizFIX)}
-Scadenza offerta: 7 aprile 2026
+Scadenza offerta: 25 aprile
+Validità offerta: 12 mesi
 ${diffBizFIX>=0 ? "Risparmio: € "+money(diffBizFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffBizFIX))}
 
 ${closingNote}`;
@@ -1342,7 +1397,8 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con FASTWEB ENERGIA BUSINESS FLEX: € ${money(totalBizFLEX)}
 - di cui quota fissa: € ${money(fixedBizFLEX)}
 - di cui quota energia: € ${money(energyBizFLEX)}
-Scadenza offerta: 7 aprile 2026
+Scadenza offerta: 25 aprile
+Validità offerta: 12 mesi
 ${diffBizFLEX>=0 ? "Risparmio: € "+money(diffBizFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffBizFLEX))}
 
 ${closingNote}`;
