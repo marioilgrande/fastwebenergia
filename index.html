@@ -343,17 +343,17 @@ const TIER_EXTRA=[0.30,0.27,0.21,0.20,0.13];
 const TIER_REFUND=[0.30,0.27,0.21,0.20,0.13];
 const ULTRA_TOLERANCE=500;
 
-const DOM_FIX_RAW = 0.210;
+const DOM_FIX_RAW = 0.180;
 const DOM_FLEX_SPREAD = 0.026;
 const DOM_CANONE_LISTINO = 13;
 const DOM_CANONE_CONV = 8;
 
-const BIZ_FIX_RAW = 0.180;
+const BIZ_FIX_RAW = 0.160;
 const BIZ_FLEX_SPREAD = 0.030;
 const BIZ_CANONE_LISTINO = 20;
 const BIZ_CANONE_CONV = 10;
 
-const OFFER_EXPIRY_TEXT = "Scadenza offerta: 25 aprile";
+const OFFER_EXPIRY_TEXT = "Scadenza offerta: 25 maggio";
 const OFFER_VALIDITY_TEXT = "Validità offerta: 12 mesi";
 
 function money(n){
@@ -659,8 +659,13 @@ function printOfferPdf(kind){
     let offertaTipo = "";
     let costoOfferta = "";
     {
-      const m = txt.match(/Costo con FASTWEB ENERGIA (?:BUSINESS\s+)?(FIX|FLEX):?\s*€\s*([0-9\.\,]+)/i);
-      if (m){ offertaTipo = m[1].toUpperCase(); costoOfferta = m[2]; }
+      const m = txt.match(/Costo con Fastweb Luce (Business\s+)?(Fix|Flex):?\s*€\s*([0-9\.\,]+)/i);
+      if (m){
+        const bizPrefix = m[1] ? "Business " : "";
+        const tipo = m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase();
+        offertaTipo = (bizPrefix + tipo).trim();
+        costoOfferta = m[3];
+      }
     }
     const quotaFissa   = extract(/di cui quota fissa\s*:\s*€\s*([0-9\.\,]+)/i);
     const quotaEnergia = extract(/di cui quota energia\s*:\s*€\s*([0-9\.\,]+)/i);
@@ -674,7 +679,7 @@ function printOfferPdf(kind){
     sectionHeader("Analisi bolletta (periodo selezionato)");
     if (periodo)        kvRow("Periodo di riferimento", periodo);
     if (costoInserito)  kvRow("Costo energia inserito (comprensivo di quota fissa)", `€ ${costoInserito}`);
-    if (costoOfferta)   kvRow(`Costo con FASTWEB ENERGIA ${offertaTipo||""}`.trim(), `€ ${costoOfferta}`);
+    if (costoOfferta)   kvRow(`Costo con Fastweb Luce ${offertaTipo||""}`.trim(), `€ ${costoOfferta}`);
     if (quotaFissa)     kvRow("di cui quota fissa",   `€ ${quotaFissa}`);
     if (quotaEnergia)   kvRow("di cui quota energia", `€ ${quotaEnergia}`);
     if (esitoTxt)       badge(esitoTxt, ok);
@@ -719,7 +724,7 @@ function printOfferPdf(kind){
     ensure(14);
     doc.setFillColor(...BRAND); doc.roundedRect(L,y,W,10,2.2,2.2,"F");
     setH2();
-    const title=titoloOfferta || (kind==="fix"?"OFFERTA FIX (DOMESTICO)":kind==="flex"?"OFFERTA FLEX (DOMESTICO)":kind==="businessFix"?"OFFERTA FIX BUSINESS":"OFFERTA FLEX BUSINESS");
+    const title=titoloOfferta || (kind==="fix"?"OFFERTA FASTWEB LUCE FIX":kind==="flex"?"OFFERTA FASTWEB LUCE FLEX":kind==="businessFix"?"OFFERTA FASTWEB LUCE BUSINESS FIX":"OFFERTA FASTWEB LUCE BUSINESS FLEX");
     doc.text(title, L+4, y+6.8);
     y+=13;
     setBody();
@@ -736,7 +741,7 @@ function printOfferPdf(kind){
   if(kind === "canone" && currentFlatAnalysis){
     filename = `FLAT_${TIER_NAMES[currentFlatAnalysis.currentTierIdx]}`;
   } else {
-    const nameMap={fix:"FIX_DOMESTICO",flex:"FLEX_DOMESTICO",businessFix:"FIX_BUSINESS",businessFlex:"FLEX_BUSINESS"};
+    const nameMap={fix:"FASTWEB_LUCE_FIX",flex:"FASTWEB_LUCE_FLEX",businessFix:"FASTWEB_LUCE_BUSINESS_FIX",businessFlex:"FASTWEB_LUCE_BUSINESS_FLEX"};
     filename = nameMap[kind] || kind;
   }
   doc.save(`Preventivo_${filename}.pdf`);
@@ -863,11 +868,11 @@ function renderRiepilogo(){
       </div>
     </div>
     <div class="offerResult" style="margin-top:10px">
-      <div class="sectionTitle">FIX Domestico</div>
-      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,210/kWh</strong> (+ disp. €0,011 → <strong>0,221</strong> €/kWh)</div>
+      <div class="sectionTitle">Fastweb Luce Fix</div>
+      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,180/kWh</strong> (+ disp. €0,011 → <strong>0,191</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
       <div class="divider"></div>
-      <div class="sectionTitle">FLEX Domestico</div>
+      <div class="sectionTitle">Fastweb Luce Flex</div>
       <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,026/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,037</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
     </div>
@@ -889,13 +894,13 @@ function renderRiepilogo(){
       </div>
     </div>
     <div class="offerResult" style="margin-top:10px">
-      <div class="sectionTitle">FIX Business</div>
-      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,180/kWh</strong> (+ disp. €0,011 → <strong>0,191</strong> €/kWh)</div>
-      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
+      <div class="sectionTitle">Fastweb Luce Business Fix</div>
+      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,160/kWh</strong> (+ disp. €0,011 → <strong>0,171</strong> €/kWh)</div>
+      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • Validità offerta: 36 mesi (anche con opzione Multisito)</div>
       <div class="divider"></div>
-      <div class="sectionTitle">FLEX Business</div>
+      <div class="sectionTitle">Fastweb Luce Business Flex</div>
       <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,030/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,041</strong> €/kWh)</div>
-      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • ${OFFER_VALIDITY_TEXT}</div>
+      <div class="hint" style="margin-top:6px">${OFFER_EXPIRY_TEXT} • Validità offerta: 36 mesi (anche con opzione Multisito)</div>
     </div>`;
   r.append(business);
 
@@ -1222,19 +1227,20 @@ function analyzeBolletta(skipWarning){
     });
   }
 
+  if(!isBiz){
   const fixCard = document.createElement("div");
   fixCard.innerHTML = `
     <div class="offerResult ${diffFIX>=0 ? "green-bg" : "red-bg"}">
-      <h3 class="resultTitle">Offerta FIX Domestico</h3>
+      <h3 class="resultTitle">Offerta Fastweb Luce Fix</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
       <div class="sectionTitle">Analisi periodo</div>
       <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
       <div class="kv"><div>Quota fissa materia energia</div><div>€ ${money(qf)}</div></div>
       <div class="kv"><div>Costo energia inserito (quota consumi + quota fissa)</div><div>€ ${money(spesaEnergia)}</div></div>
-      <div class="kv"><div>Costo con FASTWEB ENERGIA FIX</div><div>€ ${money(totalFIX)}</div></div>
+      <div class="kv"><div>Costo con Fastweb Luce Fix</div><div>€ ${money(totalFIX)}</div></div>
       <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedFIX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFIX)}</div></div>
-      <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFIX)}</div>`
                    : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFIX))}</div>`}
@@ -1249,16 +1255,16 @@ function analyzeBolletta(skipWarning){
   const flexCard = document.createElement("div");
   flexCard.innerHTML = `
     <div class="offerResult ${diffFLEX>=0 ? "green-bg" : "red-bg"}">
-      <h3 class="resultTitle">Offerta FLEX Domestico</h3>
+      <h3 class="resultTitle">Offerta Fastweb Luce Flex</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
       <div class="sectionTitle">Analisi periodo</div>
       <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
       <div class="kv"><div>Quota fissa materia energia</div><div>€ ${money(qf)}</div></div>
       <div class="kv"><div>Costo energia inserito (quota consumi + quota fissa)</div><div>€ ${money(spesaEnergia)}</div></div>
-      <div class="kv"><div>Costo con FASTWEB ENERGIA FLEX</div><div>€ ${money(totalFLEX)}</div></div>
+      <div class="kv"><div>Costo con Fastweb Luce Flex</div><div>€ ${money(totalFLEX)}</div></div>
       <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedFLEX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFLEX)}</div></div>
-      <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFLEX)}</div>`
                     : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFLEX))}</div>`}
@@ -1269,22 +1275,23 @@ function analyzeBolletta(skipWarning){
     </div>
   `;
   risultato.appendChild(flexCard.firstElementChild);
+  }
 
   if(isBiz){
     const bizFixCard = document.createElement("div");
     bizFixCard.innerHTML = `
       <div class="offerResult ${diffBizFIX>=0 ? 'green-bg' : 'red-bg'}">
-        <h3 class="resultTitle">Offerta FIX Business</h3>
+        <h3 class="resultTitle">Offerta Fastweb Luce Business Fix</h3>
         <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
         <div class="sectionTitle">Analisi periodo</div>
         <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
         <div class="kv"><div>Quota fissa materia energia</div><div>€ ${money(qf)}</div></div>
         <div class="kv"><div>Costo energia inserito (quota consumi + quota fissa)</div><div>€ ${money(spesaEnergia)}</div></div>
-        <div class="kv"><div>Costo con FASTWEB ENERGIA BUSINESS FIX</div><div>€ ${money(totalBizFIX)}</div></div>
+        <div class="kv"><div>Costo con Fastweb Luce Business Fix</div><div>€ ${money(totalBizFIX)}</div></div>
         <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedBizFIX)}</div></div>
         <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyBizFIX)}</div></div>
-        <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
-        <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
+        <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+        <div class="kv"><div>Validità offerta</div><div><strong>36 mesi</strong> (anche con opzione Multisito)</div></div>
         ${diffBizFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffBizFIX)}</div>`
                         : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffBizFIX))}</div>`}
         <div class="offerActions">
@@ -1298,17 +1305,17 @@ function analyzeBolletta(skipWarning){
     const bizFlexCard = document.createElement("div");
     bizFlexCard.innerHTML = `
       <div class="offerResult ${diffBizFLEX>=0 ? 'green-bg' : 'red-bg'}">
-        <h3 class="resultTitle">Offerta FLEX Business</h3>
+        <h3 class="resultTitle">Offerta Fastweb Luce Business Flex</h3>
         <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
         <div class="sectionTitle">Analisi periodo</div>
         <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
         <div class="kv"><div>Quota fissa materia energia</div><div>€ ${money(qf)}</div></div>
         <div class="kv"><div>Costo energia inserito (quota consumi + quota fissa)</div><div>€ ${money(spesaEnergia)}</div></div>
-        <div class="kv"><div>Costo con FASTWEB ENERGIA BUSINESS FLEX</div><div>€ ${money(totalBizFLEX)}</div></div>
+        <div class="kv"><div>Costo con Fastweb Luce Business Flex</div><div>€ ${money(totalBizFLEX)}</div></div>
         <div class="kv"><div>di cui quota fissa</div><div>€ ${money(fixedBizFLEX)}</div></div>
         <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyBizFLEX)}</div></div>
-        <div class="kv"><div>Scadenza offerta</div><div><strong>25 aprile</strong></div></div>
-        <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
+        <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+        <div class="kv"><div>Validità offerta</div><div><strong>36 mesi</strong> (anche con opzione Multisito)</div></div>
         ${diffBizFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffBizFLEX)}</div>`
                          : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffBizFLEX))}</div>`}
         <div class="offerActions">
@@ -1329,17 +1336,17 @@ Per ulteriori dettagli, contattaci!`;
 `---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----
 Nome Cliente: ${nome}
 
-OFFERTA FIX (Domestico)
+OFFERTA FASTWEB LUCE FIX
 Periodo di riferimento: ${periodoTxt}
 
 Quota consumi materia energia: € ${money(qc)}
 Quota fissa materia energia: € ${money(qf)}
 Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 
-Costo con FASTWEB ENERGIA FIX: € ${money(totalFIX)}
+Costo con Fastweb Luce Fix: € ${money(totalFIX)}
 - di cui quota fissa: € ${money(fixedFIX)}
 - di cui quota energia: € ${money(energyFIX)}
-Scadenza offerta: 25 aprile
+Scadenza offerta: 25 maggio
 Validità offerta: 12 mesi
 ${diffFIX>=0 ? "Risparmio: € "+money(diffFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFIX))}
 
@@ -1349,24 +1356,24 @@ ${closingNote}`;
 `---- PREVENTIVO OFFERTA FASTWEB ENERGIA ----
 Nome Cliente: ${nome}
 
-OFFERTA FLEX (Domestico)
+OFFERTA FASTWEB LUCE FLEX
 Periodo di riferimento: ${periodoTxt}
 
 Quota consumi materia energia: € ${money(qc)}
 Quota fissa materia energia: € ${money(qf)}
 Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 
-Costo con FASTWEB ENERGIA FLEX: € ${money(totalFLEX)}
+Costo con Fastweb Luce Flex: € ${money(totalFLEX)}
 - di cui quota fissa: € ${money(fixedFLEX)}
 - di cui quota energia: € ${money(energyFLEX)}
-Scadenza offerta: 25 aprile
+Scadenza offerta: 25 maggio
 Validità offerta: 12 mesi
 ${diffFLEX>=0 ? "Risparmio: € "+money(diffFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFLEX))}
 
 ${closingNote}`;
 
   wBizFIX =
-`---- PREVENTIVO OFFERTA FIX BUSINESS ----
+`---- PREVENTIVO OFFERTA FASTWEB LUCE BUSINESS FIX ----
 Nome Cliente: ${nome}
 
 Periodo di riferimento: ${periodoTxt}
@@ -1375,17 +1382,17 @@ Quota consumi materia energia: € ${money(qc)}
 Quota fissa materia energia: € ${money(qf)}
 Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 
-Costo con FASTWEB ENERGIA BUSINESS FIX: € ${money(totalBizFIX)}
+Costo con Fastweb Luce Business Fix: € ${money(totalBizFIX)}
 - di cui quota fissa: € ${money(fixedBizFIX)}
 - di cui quota energia: € ${money(energyBizFIX)}
-Scadenza offerta: 25 aprile
-Validità offerta: 12 mesi
+Scadenza offerta: 25 maggio
+Validità offerta: 36 mesi (anche con opzione Multisito)
 ${diffBizFIX>=0 ? "Risparmio: € "+money(diffBizFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffBizFIX))}
 
 ${closingNote}`;
 
   wBizFLEX =
-`---- PREVENTIVO OFFERTA FLEX BUSINESS ----
+`---- PREVENTIVO OFFERTA FASTWEB LUCE BUSINESS FLEX ----
 Nome Cliente: ${nome}
 
 Periodo di riferimento: ${periodoTxt}
@@ -1394,11 +1401,11 @@ Quota consumi materia energia: € ${money(qc)}
 Quota fissa materia energia: € ${money(qf)}
 Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 
-Costo con FASTWEB ENERGIA BUSINESS FLEX: € ${money(totalBizFLEX)}
+Costo con Fastweb Luce Business Flex: € ${money(totalBizFLEX)}
 - di cui quota fissa: € ${money(fixedBizFLEX)}
 - di cui quota energia: € ${money(energyBizFLEX)}
-Scadenza offerta: 25 aprile
-Validità offerta: 12 mesi
+Scadenza offerta: 25 maggio
+Validità offerta: 36 mesi (anche con opzione Multisito)
 ${diffBizFLEX>=0 ? "Risparmio: € "+money(diffBizFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffBizFLEX))}
 
 ${closingNote}`;
