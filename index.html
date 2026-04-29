@@ -508,76 +508,184 @@ function printOfferPdf(kind){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"mm", format:"a4" });
 
-  const BRAND=[124,112,180], DARK=[43,35,90], ORANGE=[247,189,43], OKBG=[191,245,191], KOBG=[255,208,208];
-  const PAGE_W=210, W=148, L=(PAGE_W-W)/2, LINE=5.2;
-  let y=20;
+  // ===== Palette professionale =====
+  const BRAND     = [124,112,180];   // viola Fastweb
+  const BRAND_D   = [70, 60, 130];   // viola scuro per banner
+  const DARK      = [33, 28, 70];
+  const TEXT      = [60, 60, 75];
+  const MUTED     = [125, 125, 145];
+  const BG_SOFT   = [246, 244, 252];
+  const BG_ALT    = [251, 250, 254];
+  const ACCENT    = [247, 189, 43];  // giallo Fastweb
+  const OK        = [40, 150, 80];
+  const KO        = [200, 60, 75];
+  const OK_BG     = [225, 244, 230];
+  const KO_BG     = [253, 230, 232];
+  const RULE      = [225, 220, 240];
 
-  function setH1(){ doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(...DARK); }
-  function setH2(){ doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(255,255,255); }
-  function setBody(){ doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(...DARK); }
-  function ensure(extra=0){ if(y+extra>285){ doc.addPage(); y=20; } }
-  function hRule(gap=8){ ensure(3+gap); doc.setDrawColor(234,230,255); doc.setLineWidth(0.2); doc.line(L,y,L+W,y); y+=gap; }
-  function sectionHeader(label){
-    ensure(12);
-    doc.setFillColor(...BRAND);
-    doc.roundedRect(L,y,W,9.5,2.5,2.5,"F");
-    setH2();
-    doc.text(label.toUpperCase(), L+4, y+6.6);
-    y+=13;
+  const PAGE_W=210, PAGE_H=297, MARGIN=14, W=PAGE_W-2*MARGIN, L=MARGIN;
+  let y = 0;
+  const SINGLE_PAGE = true; // forza tutto su una pagina
+
+  // ===== Data emissione =====
+  const todayStr = (() => {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  })();
+
+  // ===== Helpers grafici (compact single-page) =====
+  function setBody(){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(...TEXT); }
+
+  function drawHeader(){
+    doc.setFillColor(...BRAND_D);
+    doc.rect(0, 0, PAGE_W, 22, "F");
+    doc.setFillColor(...ACCENT);
+    doc.rect(0, 22, PAGE_W, 1.5, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(255,255,255);
+    doc.text("FASTWEB", L, 12);
+    const wF = doc.getTextWidth("FASTWEB");
+    doc.setTextColor(...ACCENT);
+    doc.text(" ENERGIA", L + wF, 12);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+    doc.text("Preventivo personalizzato", L, 17.5);
+    const dataLab = "Emesso il " + todayStr;
+    doc.setFontSize(8.5);
+    const dW = doc.getTextWidth(dataLab);
+    doc.text(dataLab, PAGE_W - L - dW, 17.5);
+  }
+
+  function drawFooter(){
+    doc.setDrawColor(...RULE); doc.setLineWidth(0.2);
+    doc.line(L, PAGE_H-10, PAGE_W-L, PAGE_H-10);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+    doc.text("Preventivo non vincolante - i valori sono stime indicative.", L, PAGE_H-5.5);
+    const t = "FASTWEB ENERGIA";
+    const tw = doc.getTextWidth(t);
+    doc.text(t, PAGE_W - L - tw, PAGE_H-5.5);
+  }
+
+  function ensure(extra){ /* single page: no overflow handling, layout calibrato */ }
+
+  function sectionTitle(label){
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(...BRAND_D);
+    doc.text(label.toUpperCase(), L, y);
+    doc.setDrawColor(...ACCENT); doc.setLineWidth(0.7);
+    doc.line(L, y+1.2, L+18, y+1.2);
+    y += 4.2;
     setBody();
   }
-  function kvRow(k,v){
-    ensure(LINE+1);
-    const key=k.trim().replace(/:\s*$/,'');
-    doc.setFont("helvetica","normal"); doc.setFontSize(11);
-    doc.setTextColor(68,68,68); doc.text(key,L,y);
-    doc.setTextColor(...DARK);
-    const valW=doc.getTextWidth(v), valX=L+W-valW;
-    doc.text(v,valX,y);
-    const dotsStart=L+doc.getTextWidth(key)+2.5;
-    const dotsEnd=valX-2.5;
-    if(dotsEnd>dotsStart){
-      doc.setDrawColor(210,206,240); doc.setLineWidth(0.2);
-      doc.setLineDash([0.8,1.2],0);
-      doc.line(dotsStart,y-0.8,dotsEnd,y-0.8);
-      doc.setLineDash();
+
+  function infoCard(rows){
+    const rowH = 4.6;
+    const padY = 2.4;
+    const totalH = rows.length * rowH + padY*2;
+    doc.setFillColor(...BG_SOFT);
+    doc.roundedRect(L, y, W, totalH, 1.8, 1.8, "F");
+    let cy = y + padY + 3;
+    rows.forEach(([k,v])=>{
+      doc.setFont("helvetica","normal"); doc.setFontSize(8.6); doc.setTextColor(...MUTED);
+      doc.text(k, L+4, cy);
+      doc.setFont("helvetica","bold"); doc.setTextColor(...DARK);
+      const vw = doc.getTextWidth(v);
+      doc.text(v, L+W-4-vw, cy);
+      cy += rowH;
+    });
+    y += totalH + 2.4;
+  }
+
+  function kvRow(k, v, opt){
+    opt = opt || {};
+    const indent = opt.indent ? 4 : 0;
+    const bold = !!opt.bold;
+    if(opt.alt){
+      doc.setFillColor(...BG_ALT);
+      doc.rect(L, y-3, W, 4.6, "F");
     }
-    y+=LINE;
+    doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(9);
+    doc.setTextColor(...(bold ? DARK : TEXT));
+    doc.text(k, L+indent, y);
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setTextColor(...DARK);
+    const vw = doc.getTextWidth(v);
+    doc.text(v, L+W-vw, y);
+    y += 4.4;
   }
-  function badge(t,ok){
-    ensure(11);
-    doc.setFillColor(...(ok?OKBG:KOBG));
-    doc.roundedRect(L,y-4,W,9.8,2.2,2.2,"F");
-    doc.setTextColor(...DARK); doc.setFont("helvetica","bold"); doc.setFontSize(11);
-    doc.text(t,L+4,y+2.1);
-    y+=12; setBody();
+
+  function spacer(h){ y += h; }
+
+  function bigBadge(label, value, ok){
+    const H = 11;
+    doc.setFillColor(...(ok?OK_BG:KO_BG));
+    doc.roundedRect(L, y, W, H, 2.2, 2.2, "F");
+    doc.setFillColor(...(ok?OK:KO));
+    doc.roundedRect(L, y, 2.2, H, 1, 1, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(8.8); doc.setTextColor(...(ok?OK:KO));
+    doc.text(label.toUpperCase(), L+6, y+4.6);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(...DARK);
+    const vW = doc.getTextWidth(value);
+    doc.text(value, L+W-6-vW, y+8);
+    y += H + 3.5;
   }
-  function para(lines){
+
+  function offerHero(title, subtitle){
+    const H = 13;
+    doc.setFillColor(...BRAND_D);
+    doc.roundedRect(L, y, W, H, 2.4, 2.4, "F");
+    doc.setFillColor(...ACCENT);
+    doc.roundedRect(L, y, 3, H, 1.2, 1.2, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(11.5); doc.setTextColor(255,255,255);
+    doc.text(title, L+8, y+6);
+    if(subtitle){
+      doc.setFont("helvetica","normal"); doc.setFontSize(8.2); doc.setTextColor(...ACCENT);
+      doc.text(subtitle, L+8, y+10.5);
+    }
+    y += H + 3.5;
+  }
+
+  function paragraph(text){
+    setBody();
+    doc.setFontSize(8.3);
+    doc.setTextColor(...TEXT);
+    const lines = doc.splitTextToSize(text, W);
     lines.forEach(line=>{
-      doc.splitTextToSize(line,W).forEach(w=>{
-        ensure(LINE);
-        doc.text(w,L,y);
-        y+=LINE;
-      });
+      doc.text(line, L, y);
+      y += 3.6;
     });
   }
 
+  // ===== Parsing (INVARIATO) =====
   function extract(re){ const m=txt.match(re); return m?m[1].trim():""; }
-  const titoloOfferta=extract(/OFFERTA\s+(.+)\n/);
-  const periodoRef=extract(/Periodo di riferimento:\s*([^\n]+)/);
+  const titoloOfferta = extract(/OFFERTA\s+(.+)\n/);
+  const periodoRef    = extract(/Periodo di riferimento:\s*([^\n]+)/);
+  const nomeCliente   = extract(/Nome Cliente:\s*([^\n]+)/);
 
-  setH1();
-  doc.text("PREVENTIVO OFFERTA FASTWEB ENERGIA", L, y);
-  y+=8;
-  setBody();
-  if(periodoRef){
-    doc.setTextColor(...BRAND);
-    doc.text("Periodo: "+periodoRef, L, y);
-    y+=7;
-  }
-  doc.setTextColor(...DARK);
-  hRule(10);
+  // ===== START PDF =====
+  drawHeader();
+  y = 30;
 
+  // ---- DATI CLIENTE ----
+  sectionTitle("Dati cliente");
+  const datiRows = [];
+  datiRows.push(["Nome cliente", nomeCliente || "—"]);
+  datiRows.push(["Data emissione", todayStr]);
+  if(periodoRef) datiRows.push(["Periodo di riferimento", periodoRef]);
+  infoCard(datiRows);
+
+  // ---- OFFERTA HERO ----
+  let displayTitle = "";
+  let heroSub = "";
+  if(kind==="fix"){ displayTitle="FASTWEB LUCE FIX"; heroSub="Prezzo fisso - uso domestico"; }
+  else if(kind==="flex"){ displayTitle="FASTWEB LUCE FLEX"; heroSub="Prezzo indicizzato PUN - uso domestico"; }
+  else if(kind==="businessFix"){ displayTitle="FASTWEB LUCE BUSINESS FIX"; heroSub="Prezzo fisso per Partita IVA - validità 36 mesi"; }
+  else if(kind==="businessFlex"){ displayTitle="FASTWEB LUCE BUSINESS FLEX"; heroSub="Prezzo indicizzato PUN per Partita IVA - validità 36 mesi"; }
+  else { displayTitle = (titoloOfferta||"OFFERTA FASTWEB ENERGIA").toUpperCase(); heroSub = "Energia Casa"; }
+
+  sectionTitle("Offerta proposta");
+  offerHero(displayTitle, heroSub);
+
+  // ---- CASO CANONE: card prezzo "hero" ----
   if(kind==="canone"){
     const fascia=extract(/Fascia visualizzata:\s*([A-Z]+)/) || extract(/Fascia consigliata:\s*([A-Z]+)/);
     const prezzo=extract(/Costo Mensile Fascia:\s*€\s*([0-9\.,]+)/);
@@ -586,75 +694,88 @@ function printOfferPdf(kind){
     const validita=extract(/Validità offerta:\s*([^\n]+)/i);
     const soglia=extract(/Soglia fascia:\s*fino a\s*([0-9\.\,]+)\s*kWh\/anno/i);
 
-    const CARD_W=104, X=(PAGE_W-CARD_W)/2, pad=7, radius=6;
-    let contentH=0;
-    contentH+=9+5;
-    if(listino) contentH+=6+2;
-    contentH+=10+3;
-    contentH+=5+4;
-    const descLines=1+(soglia?1:0)+(potenzaK?1:0)+(validita?1:0);
-    contentH+=descLines*5;
-    const CH=pad+contentH+pad;
+    const CW=104, X=(PAGE_W-CW)/2, pad=7, radius=6;
+    let contentH = 9 + 5 + (listino?8:0) + 13 + 9;
+    const descLines = 1 + (soglia?1:0) + (potenzaK?1:0) + (validita?1:0);
+    contentH += descLines*5;
+    const CH = pad + contentH + pad;
 
     ensure(CH+8);
-    doc.setFillColor(...ORANGE);
-    doc.roundedRect(X,y,CARD_W,CH,radius,radius,"F");
-    doc.setDrawColor(...BRAND); doc.setLineWidth(0.45);
-    doc.roundedRect(X,y,CARD_W,CH,radius,radius,"S");
+    doc.setFillColor(...ACCENT);
+    doc.roundedRect(X, y, CW, CH, radius, radius, "F");
+    doc.setDrawColor(...BRAND_D); doc.setLineWidth(0.5);
+    doc.roundedRect(X, y, CW, CH, radius, radius, "S");
 
-    let cy=y+pad;
-    doc.setFillColor(155,145,214);
-    const pillW=Math.max(34,16+doc.getTextWidth(fascia||" "));
-    doc.roundedRect(X+6,cy,pillW,9,5,5,"F");
-    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11.3);
-    doc.text((fascia||"").toString(), X+10, cy+6.1);
-    cy+=14;
-
-    doc.setTextColor(107,95,168); doc.setFont("helvetica","bold");
-    if(listino){
-      doc.setFontSize(11.5);
-      const old=listino+"€"; doc.text(old,X+6,cy+4.2);
-      const wOld=doc.getTextWidth(old);
-      doc.setDrawColor(107,95,168); doc.setLineWidth(0.6); doc.line(X+6,cy+2.1,X+6+wOld,cy+2.1);
-      cy+=8;
+    let cy = y+pad;
+    if(fascia){
+      doc.setFillColor(...BRAND_D);
+      const pillW = Math.max(34, 14 + doc.getTextWidth(fascia));
+      doc.roundedRect(X+6, cy, pillW, 9, 4.5, 4.5, "F");
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(255,255,255);
+      doc.text(fascia, X+6 + (pillW-doc.getTextWidth(fascia))/2, cy+6.1);
     }
-    doc.setTextColor(...DARK); doc.setFontSize(31);
+    cy += 14;
+    if(listino){
+      doc.setFont("helvetica","bold"); doc.setFontSize(11.5); doc.setTextColor(...BRAND_D);
+      const old = listino+"€"; doc.text(old, X+6, cy+4.2);
+      const wOld = doc.getTextWidth(old);
+      doc.setDrawColor(...BRAND_D); doc.setLineWidth(0.6);
+      doc.line(X+6, cy+2.1, X+6+wOld, cy+2.1);
+      cy += 8;
+    }
+    doc.setTextColor(...DARK); doc.setFontSize(31); doc.setFont("helvetica","bold");
     doc.text((prezzo||"")+"€", X+6, cy+8.2);
-    cy+=13;
+    cy += 13;
     doc.setFont("helvetica","bold"); doc.setFontSize(10.8);
     doc.text("al mese", X+6, cy+4.2);
-    cy+=9;
-
-    doc.setFont("helvetica","bold"); doc.setFontSize(10);
+    cy += 9;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.8); doc.setTextColor(...DARK);
     doc.text("per i clienti Casa o Mobile", X+6, cy+4.1); cy+=5;
     if(soglia){ doc.text(`fino a ${soglia} kWh/anno`, X+6, cy+4.1); cy+=5; }
     if(potenzaK){ doc.text(`con potenza ${potenzaK} kW`, X+6, cy+4.1); cy+=5; }
     if(validita){ doc.text(validita, X+6, cy+4.1); cy+=5; }
 
-    y+=CH+8;
-    hRule(10);
+    y += CH + 6;
   }
 
-  const lines=txt.split("\n");
-  let start=lines.findIndex(l=>/^ANALISI BOLLETTA/i.test(l));
-  let end  =lines.findIndex((l,idx)=>idx>start && /^ANALISI ANNUALE/i.test(l));
+  // ===== ANALISI BOLLETTA / FIX-FLEX (parsing INVARIATO) =====
+  const lines = txt.split("\n");
+  let aStart = lines.findIndex(l=>/^ANALISI BOLLETTA/i.test(l));
+  let aEnd   = lines.findIndex((l,idx)=>idx>aStart && /^ANALISI ANNUALE/i.test(l));
   const isFixFlex = (kind==="fix"||kind==="flex"||kind==="businessFix"||kind==="businessFlex");
 
-  if(start!==-1){
-    sectionHeader("Analisi bolletta (periodo selezionato)");
-    const periodo=extract(/Periodo di riferimento:\s*([^\n]+)/);
-    if(periodo){ kvRow("Periodo di riferimento", periodo); }
-    for(let i=start+1;i<(end===-1?lines.length:end);i++){
+  if(aStart!==-1){
+    sectionTitle("Analisi bolletta - periodo selezionato");
+    let pendingBadge = null;
+    let altRow = false;
+    for(let i=aStart+1; i<(aEnd===-1?lines.length:aEnd); i++){
       const line=lines[i].trim(); if(!line || /^NOTA:/.test(line)) continue;
-      if(/^Risparmio/i.test(line)){ badge(line,true); continue; }
-      if(/superiore/i.test(line)){ badge(line,false); continue; }
+      if(/^Risparmio/i.test(line)){
+        const m = line.match(/€\s*([0-9\.,]+)/);
+        pendingBadge = {label:"Risparmio sulla bolletta", value: m?("€ "+m[1]):line, ok:true};
+        continue;
+      }
+      if(/superiore/i.test(line)){
+        const m = line.match(/€\s*([0-9\.,]+)/);
+        pendingBadge = {label:"Maggior costo dell'offerta", value: m?("€ "+m[1]):line, ok:false};
+        continue;
+      }
       const parts=line.split(":");
-      if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
-      else para([line]);
+      if(parts.length>=2){
+        const k=parts[0].trim().replace(/^-\s*/,"");
+        const v=parts.slice(1).join(":").trim();
+        const isIndent = /^-/.test(parts[0].trim());
+        const isTotal = /Costo con|Totale/i.test(k);
+        kvRow(k, v, {bold:isTotal, indent:isIndent, alt:altRow});
+        altRow = !altRow;
+      } else {
+        paragraph(line);
+      }
     }
-    hRule(8);
+    spacer(1);
+    if(pendingBadge) bigBadge(pendingBadge.label, pendingBadge.value, pendingBadge.ok);
+    spacer(2);
   } else if (isFixFlex){
-    const periodo = extract(/Periodo di riferimento:\s*([^\n]+)/);
     const costoInserito = extract(/Costo energia inserito.*?:\s*€\s*([0-9\.\,]+)/i);
     let offertaTipo = "";
     let costoOfferta = "";
@@ -670,73 +791,105 @@ function printOfferPdf(kind){
     const quotaFissa   = extract(/di cui quota fissa\s*:\s*€\s*([0-9\.\,]+)/i);
     const quotaEnergia = extract(/di cui quota energia\s*:\s*€\s*([0-9\.\,]+)/i);
 
-    let esitoTxt = "", ok = true;
+    let badgeLabel = "", badgeValue = "", ok = true;
     const m1 = txt.match(/Risparmio:\s*€\s*([0-9\.\,]+)/i);
     const m2 = txt.match(/superiore\s+di\s+€\s*([0-9\.\,]+)/i);
-    if (m1){ esitoTxt = `Risparmio su bolletta di € ${m1[1]}`; ok=true; }
-    else if (m2){ esitoTxt = `L’offerta in questo caso è superiore di € ${m2[1]}`; ok=false; }
+    if (m1){ badgeLabel = "Risparmio stimato sulla bolletta"; badgeValue = "€ "+m1[1]; ok=true; }
+    else if (m2){ badgeLabel = "Maggior costo dell'offerta"; badgeValue = "€ "+m2[1]; ok=false; }
 
-    sectionHeader("Analisi bolletta (periodo selezionato)");
-    if (periodo)        kvRow("Periodo di riferimento", periodo);
-    if (costoInserito)  kvRow("Costo energia inserito (comprensivo di quota fissa)", `€ ${costoInserito}`);
-    if (costoOfferta)   kvRow(`Costo con Fastweb Luce ${offertaTipo||""}`.trim(), `€ ${costoOfferta}`);
-    if (quotaFissa)     kvRow("di cui quota fissa",   `€ ${quotaFissa}`);
-    if (quotaEnergia)   kvRow("di cui quota energia", `€ ${quotaEnergia}`);
-    if (esitoTxt)       badge(esitoTxt, ok);
-    hRule(8);
+    sectionTitle("Confronto economico - periodo selezionato");
+    if(costoInserito){
+      kvRow("Spesa attuale (quota consumi + quota fissa)", "€ " + costoInserito, {bold:true});
+    }
+    if(costoOfferta){
+      kvRow(`Spesa con Fastweb Luce ${offertaTipo||""}`.trim(), "€ " + costoOfferta, {bold:true});
+    }
+    if(quotaFissa)   kvRow("di cui quota fissa", "€ " + quotaFissa, {indent:true});
+    if(quotaEnergia) kvRow("di cui quota energia", "€ " + quotaEnergia, {indent:true});
+    spacer(2);
+    if(badgeLabel) bigBadge(badgeLabel, badgeValue, ok);
+    spacer(2);
   }
 
-  start=lines.findIndex(l=>/^ANALISI ANNUALE/i.test(l));
-  if(start!==-1){
-    sectionHeader("Analisi annuale");
-    for(let i=start+1;i<lines.length;i++){
+  // ===== ANALISI ANNUALE (parsing INVARIATO) =====
+  let nStart = lines.findIndex(l=>/^ANALISI ANNUALE/i.test(l));
+  if(nStart!==-1){
+    sectionTitle("Analisi annuale");
+    let pending = null;
+    let altRow = false;
+    for(let i=nStart+1; i<lines.length; i++){
       let line=lines[i].trim(); if(!line || /^NOTA:/.test(line)) continue;
 
       if(/^Extra oltre soglia/i.test(line)){
         const m=line.match(/Extra oltre soglia:\s*([\d\.\s]+)\s*kWh.*?€\s*([\d\.,]+)/i);
         const q=(m && m[1]) ? m[1].replace(/\s+/g," ").trim() : "";
         const eur=(m && m[2]) ? m[2].trim() : "";
-        kvRow("Extra oltre soglia", `${q} kWh -> € ${eur}`);
+        kvRow("Extra oltre soglia", `${q} kWh - € ${eur}`, {indent:true, alt:altRow});
+        altRow = !altRow;
         continue;
       }
       if(/^Rimborso sotto soglia/i.test(line)){
         const m=line.match(/Rimborso sotto soglia:\s*([\d\.\s]+)\s*kWh.*?€\s*([\d\.,]+)/i);
         const q=(m && m[1]) ? m[1].replace(/\s+/g," ").trim() : "";
         const eur=(m && m[2]) ? m[2].trim() : "";
-        kvRow("Rimborso sotto soglia", `${q} kWh -> € ${eur}`);
+        kvRow("Rimborso sotto soglia", `${q} kWh - € ${eur}`, {indent:true, alt:altRow});
+        altRow = !altRow;
         continue;
       }
       if(/^Scadenza offerta/i.test(line) || /^Validità offerta/i.test(line)){
-        const parts=line.split(":");
-        if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
+        // gestito nella sezione dedicata "Validità e scadenza"
         continue;
       }
-      if(/^Totale risparmio annuo/i.test(line)){ badge(line,true); continue; }
-      if(/Spesa annua superiore/i.test(line)){ badge(line,false); continue; }
+      if(/^Totale risparmio annuo/i.test(line)){
+        const m=line.match(/€\s*([0-9\.,]+)/);
+        pending={label:"Risparmio annuo stimato", value:m?("€ "+m[1]):line, ok:true};
+        continue;
+      }
+      if(/Spesa annua superiore/i.test(line)){
+        const m=line.match(/€\s*([0-9\.,]+)/);
+        pending={label:"Maggior costo annuo", value:m?("€ "+m[1]):line, ok:false};
+        continue;
+      }
 
       const parts=line.split(":");
-      if(parts.length>=2) kvRow(parts[0], parts.slice(1).join(":").trim());
-      else para([line]);
+      if(parts.length>=2){
+        const k=parts[0].trim();
+        const v=parts.slice(1).join(":").trim();
+        const isTotal = /Totale|Spesa annua/i.test(k);
+        kvRow(k, v, {bold:isTotal, alt:altRow});
+        altRow = !altRow;
+      } else {
+        paragraph(line);
+      }
     }
+    spacer(1);
+    if(pending) bigBadge(pending.label, pending.value, pending.ok);
+    spacer(2);
   }
 
-  if(kind!=="canone"){
-    ensure(14);
-    doc.setFillColor(...BRAND); doc.roundedRect(L,y,W,10,2.2,2.2,"F");
-    setH2();
-    const title=titoloOfferta || (kind==="fix"?"OFFERTA FASTWEB LUCE FIX":kind==="flex"?"OFFERTA FASTWEB LUCE FLEX":kind==="businessFix"?"OFFERTA FASTWEB LUCE BUSINESS FIX":"OFFERTA FASTWEB LUCE BUSINESS FLEX");
-    doc.text(title, L+4, y+6.8);
-    y+=13;
-    setBody();
+  // ===== VALIDITÀ E SCADENZA =====
+  const scadenza = extract(/Scadenza offerta:\s*([^\n]+)/i);
+  const validita = extract(/Validità offerta:\s*([^\n]+)/i);
+  if(scadenza || validita){
+    sectionTitle("Validità e scadenza");
+    const rows = [];
+    if(scadenza) rows.push(["Scadenza offerta", scadenza]);
+    if(validita) rows.push(["Validità offerta", validita]);
+    infoCard(rows);
   }
 
-  const noteStart=lines.findIndex(l=>/^NOTA:/i.test(l));
+  // ===== NOTE =====
+  const noteStart = lines.findIndex(l=>/^NOTA:/i.test(l));
   if(noteStart!==-1){
-    hRule(8);
-    sectionHeader("Note");
-    para(lines.slice(noteStart));
+    sectionTitle("Note importanti");
+    const noteLines = lines.slice(noteStart+1).filter(l=>l.trim().length>0);
+    paragraph(noteLines.join(" "));
   }
 
+  // ===== Footer (singola pagina) =====
+  drawFooter();
+
+  // ===== Filename (INVARIATO) =====
   let filename = kind;
   if(kind === "canone" && currentFlatAnalysis){
     filename = `FLAT_${TIER_NAMES[currentFlatAnalysis.currentTierIdx]}`;
