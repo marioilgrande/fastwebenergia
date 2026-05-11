@@ -35,7 +35,43 @@
   .row{display:grid; grid-template-columns:1fr 1fr; gap:14px}
 
   #periodoCheckboxes{display:grid; grid-template-columns:repeat(3,minmax(190px,1fr)); gap:12px}
-  .monthItem{display:flex; align-items:center; gap:12px; padding:6px 10px; border:1px solid #e2def9; border-radius:12px; background:#fff}
+  .monthItem{display:flex; align-items:center; gap:12px; padding:6px 10px; border:1px solid #e2def9; border-radius:12px; background:#fff; position:relative}
+  .monthItem[data-tooltip]:hover::after{
+    content:attr(data-tooltip);
+    position:absolute;
+    bottom:calc(100% + 10px);
+    left:50%;
+    transform:translateX(-50%);
+    background:linear-gradient(135deg, var(--grad-a), var(--grad-b));
+    color:var(--violet);
+    font-weight:800;
+    font-size:13px;
+    letter-spacing:.2px;
+    padding:8px 12px;
+    border-radius:10px;
+    white-space:pre;
+    line-height:1.45;
+    box-shadow:0 8px 22px rgba(124,112,180,.28);
+    border:1.5px solid #d6a800;
+    z-index:9999;
+    pointer-events:none;
+    opacity:0;
+    animation:tooltipFade .15s ease-out forwards;
+  }
+  .monthItem[data-tooltip]:hover::before{
+    content:"";
+    position:absolute;
+    bottom:calc(100% + 4px);
+    left:50%;
+    transform:translateX(-50%);
+    border:6px solid transparent;
+    border-top-color:var(--grad-b);
+    z-index:9999;
+    pointer-events:none;
+    opacity:0;
+    animation:tooltipFade .15s ease-out forwards;
+  }
+  @keyframes tooltipFade{ to{opacity:1} }
   .monthItem input{appearance:none; width:22px; height:22px; border:2px solid var(--brand); border-radius:50%; position:relative; flex:0 0 auto}
   .monthItem input:checked::before{content:""; position:absolute; inset:4px; background:var(--brand); border-radius:50%}
   .monthItem span{font-weight:700}
@@ -435,11 +471,22 @@ const punData=[
   {month:"mar-26",value:0.14340,order:15},
   {month:"apr-26",value:0.11950,order:16},
 ];
+// PSV (gas) — definito qui in alto così il tooltip dei mesi può usarlo
+const psvData=[
+  {month:"nov-25", value:0.3487},
+  {month:"dic-25", value:0.3280},
+  {month:"gen-26", value:0.4039},
+  {month:"feb-26", value:0.3768},
+  {month:"mar-26", value:0.5577},
+  {month:"apr-26", value:0.49312}
+];
 const periodoBox=document.getElementById("periodoCheckboxes");
 punData.forEach(m=>{
   const wrap=document.createElement("label");
   wrap.className="monthItem";
-  wrap.title=`PUN: ${m.value.toFixed(5)} €/kWh`;
+  const psvRec = psvData.find(p=>p.month===m.month);
+  const psvTxt = psvRec ? `\nPSV: ${psvRec.value.toFixed(5)} €/Smc` : "";
+  wrap.setAttribute("data-tooltip", `PUN: ${m.value.toFixed(5)} €/kWh${psvTxt}`);
   const cb=document.createElement("input");
   cb.type="checkbox";
   cb.name="mese";
@@ -483,15 +530,6 @@ const GAS_DOM_CANONE_LISTINO = 15;
 const GAS_DOM_CANONE_CONV = 4;
 const GAS_BIZ_CANONE_LISTINO = 20;
 const GAS_BIZ_CANONE_CONV = 10;
-
-const psvData=[
-  {month:"nov-25", value:0.3487},
-  {month:"dic-25", value:0.3280},
-  {month:"gen-26", value:0.4039},
-  {month:"feb-26", value:0.3768},
-  {month:"mar-26", value:0.5577},
-  {month:"apr-26", value:0.49312}
-];
 
 let gasState = { active:false, mode:null, smc:0, qc:0, qf:0 };
 let wDUAL_FIX = "", wDUAL_FLEX = "", wDUAL_FLAT = "", wUPSELL = "";
@@ -2124,6 +2162,9 @@ function confirmGasData(){
       alert("Seleziona almeno un mese di riferimento.");
       return;
     }
+    // In upsell il cliente è per definizione già Fastweb Luce: attivo automaticamente la convergenza
+    const clienteFwCb = document.getElementById("clienteFastweb");
+    if(clienteFwCb) clienteFwCb.checked = true;
   }
   gasState = { active:true, mode, smc, qc, qf };
   closeGasModal();
