@@ -637,7 +637,7 @@ Costo Mensile Fascia: € ${money(opt.monthly)} ${data.isClient ? `(sconto conve
 Soglia fascia: fino a ${opt.threshold.toLocaleString("it-IT")} kWh/anno
 ${opt.tierIdx===4 ? `Tolleranza fascia ULTRA: fino a ${(opt.threshold + ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno\n` : ""}Extra oltre soglia: € ${extraRateTxt}/kWh
 Restituzione consumi non utilizzati: € ${refundRateTxt}/kWh
-Validità offerta: 5 anni
+Validità offerta: 36 mesi
 Potenza contatore: ${data.potenzaValueText}
 
 ANALISI BOLLETTA
@@ -1267,7 +1267,7 @@ function renderFlatCards(){
     </div>
     <div class="cards" id="cardsWrap"></div>
     <div class="hint" style="text-align:center;margin-top:10px;font-weight:800">
-      Tutte le offerte FLAT sono valide per <strong>5 anni</strong>
+      Tutte le offerte FLAT sono valide per <strong>36 mesi</strong>
     </div>`;
 
   const cardsWrap=container.querySelector("#cardsWrap");
@@ -1469,7 +1469,7 @@ function buildFlatCardHTML(data, tierIdxToShow){
       ${ultraTolRow}
       <div class="kv"><div>Extra oltre soglia</div><div><strong>€ ${extraRateTxt}/kWh</strong></div></div>
       <div class="kv"><div>Restituzione consumi non utilizzati</div><div><strong>€ ${refundRateTxt}/kWh</strong></div></div>
-      <div class="kv"><div>Validità offerta</div><div><strong>5 anni</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>36 mesi</strong></div></div>
 
       <div class="sectionTitle">Analisi bolletta (periodo selezionato)</div>
       <div class="kv"><div>Totale Bolletta inserito</div><div>€ ${money(data.totaleBolletta)}</div></div>
@@ -2048,7 +2048,7 @@ ${luceAnnuoDiff>=0 ? "RISPARMIO ANNUALE LUCE: € "+money(luceAnnuoDiff) : "Magg
 `OFFERTA FASTWEB LUCE FLAT — FASCIA ${tierName}
 Costo mensile fascia: € ${money(flatOpt.monthly)} ${isClient?"(cliente Fastweb/Vodafone, sconto convergenza incluso)":"(listino)"}
 Soglia fascia: fino a ${flatOpt.threshold.toLocaleString("it-IT")} kWh/anno
-Validità offerta: 5 anni
+Validità offerta: 36 mesi
 
 Analisi LUCE - periodo
 Spesa bolletta attuale (periodo): € ${money(totaleBolletta)}
