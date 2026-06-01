@@ -389,6 +389,21 @@
               <div class="hint" style="margin-top:4px; font-size:11px">Sincronizzato con i mesi del form principale.</div>
             </div>
           </div>
+
+          <!-- Campi extra solo in modalità DUAL: periodo gas diverso da luce -->
+          <div id="gasDualExtra" style="display:none; padding:10px 12px; border:1.5px dashed #1f9e6e; border-radius:12px; background:#f0faf5; margin-bottom:12px">
+            <label class="inlineCheck" for="gasPeriodoDiversoCb" style="margin:0">
+              <input id="gasPeriodoDiversoCb" type="checkbox" />
+              <span style="font-size:14px; font-weight:800">Il gas ha un periodo diverso dalla luce</span>
+            </label>
+            <div id="gasDualMesiWrap" style="display:none; margin-top:10px">
+              <div class="gasField" style="margin:0">
+                <label style="font-size:13px">Mesi di riferimento GAS</label>
+                <div id="gasDualMeseChecks" class="gasModalMonthsGrid"></div>
+                <div class="hint" style="margin-top:4px; font-size:11px">Seleziona i mesi della bolletta gas (anche se diversi da quelli luce).</div>
+              </div>
+            </div>
+          </div>
           <div class="gasField">
             <label for="gasSmc">Smc fatturati nel periodo</label>
             <input id="gasSmc" type="number" min="0" step="0.01" />
@@ -520,7 +535,7 @@ const BIZ_FLEX_SPREAD = 0.030;
 const BIZ_CANONE_LISTINO = 20;
 const BIZ_CANONE_CONV = 10;
 
-const OFFER_EXPIRY_TEXT = "Scadenza offerta: 25 maggio";
+const OFFER_EXPIRY_TEXT = "Scadenza offerta: 16 giugno";
 const OFFER_VALIDITY_TEXT = "Validità offerta: 12 mesi";
 
 // ===== GAS =====
@@ -531,7 +546,7 @@ const GAS_DOM_CANONE_CONV = 4;
 const GAS_BIZ_CANONE_LISTINO = 20;
 const GAS_BIZ_CANONE_CONV = 10;
 
-let gasState = { active:false, mode:null, smc:0, qc:0, qf:0 };
+let gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[] };
 let wDUAL_FIX = "", wDUAL_FLEX = "", wDUAL_FLAT = "", wUPSELL = "";
 let _dualIsBiz = false;
 let _dualHasFlat = false;
@@ -840,6 +855,8 @@ function printOfferPdf(kind){
   function extract(re){ const m=txt.match(re); return m?m[1].trim():""; }
   const titoloOfferta = extract(/OFFERTA\s+(.+)\n/);
   const periodoRef    = extract(/Periodo di riferimento:\s*([^\n]+)/);
+  const periodoLuce   = extract(/Periodo luce:\s*([^\n]+)/);
+  const periodoGas    = extract(/Periodo gas:\s*([^\n]+)/);
   const nomeCliente   = extract(/Nome Cliente:\s*([^\n]+)/);
 
   // ===== START PDF =====
@@ -851,8 +868,36 @@ function printOfferPdf(kind){
   const datiRows = [];
   datiRows.push(["Nome cliente", nomeCliente || "—"]);
   datiRows.push(["Data emissione", todayStr]);
-  if(periodoRef) datiRows.push(["Periodo di riferimento", periodoRef]);
+  if(periodoLuce && periodoGas && periodoLuce !== periodoGas){
+    // DUAL con periodi diversi: mostro entrambi distinti
+    datiRows.push(["Periodo riferimento LUCE", periodoLuce]);
+    datiRows.push(["Periodo riferimento GAS",  periodoGas]);
+  } else if(periodoLuce){
+    datiRows.push(["Periodo di riferimento", periodoLuce]);
+    if(periodoGas && periodoGas !== periodoLuce) datiRows.push(["Periodo riferimento GAS", periodoGas]);
+  } else if(periodoRef){
+    datiRows.push(["Periodo di riferimento", periodoRef]);
+    if(periodoGas && periodoGas !== periodoRef) datiRows.push(["Periodo riferimento GAS", periodoGas]);
+  } else if(periodoGas){
+    datiRows.push(["Periodo di riferimento", periodoGas]);
+  }
   infoCard(datiRows);
+
+  // Banner di evidenza quando i periodi sono diversi (DUAL con periodi distinti)
+  if(periodoLuce && periodoGas && periodoLuce !== periodoGas){
+    const bannerH = 9;
+    const oldFill = doc.getFillColor;
+    doc.setFillColor(255, 247, 224);
+    doc.setDrawColor(224, 168, 46);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(L, y, W, bannerH, 2, 2, "FD");
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(91, 67, 16);
+    doc.text(`Attenzione: bollette luce e gas in periodi differenti — luce: ${periodoLuce}  |  gas: ${periodoGas}`, L+3, y+5.8);
+    y += bannerH + 3;
+    setBody();
+  }
 
   // ---- OFFERTA HERO ----
   let displayTitle = "";
@@ -930,18 +975,27 @@ function printOfferPdf(kind){
   if(isDualOrUpsell){
     const grab = (re)=>{ const m=txt.match(re); return m?m[1].trim():""; };
 
+    // Isolo il sotto-testo del solo blocco GAS per evitare che le regex generiche
+    // (es. "di cui quota fissa") peschino i valori della LUCE che lo precede nel testo DUAL.
+    const _gasStartIdx = (()=>{
+      const m = txt.match(/OFFERTA\s+FASTWEB GAS FLEX(?:\s+BUSINESS)?/i);
+      return m ? m.index : -1;
+    })();
+    const _gasOnlyTxt = _gasStartIdx >= 0 ? txt.slice(_gasStartIdx) : txt;
+    const grabGas = (re)=>{ const m=_gasOnlyTxt.match(re); return m?m[1].trim():""; };
+
     // -- Blocco GAS --
-    const gName = grab(/OFFERTA\s+(FASTWEB GAS FLEX(?:\s+BUSINESS)?)/i) || "FASTWEB GAS FLEX";
-    const gSmc          = grab(/Smc fatturati:\s*([^\n]+)/i);
-    const gQc           = grab(/Quota consumi materia gas:\s*€\s*([0-9\.\,]+)/i);
-    const gQf           = grab(/Quota fissa materia gas:\s*€\s*([0-9\.\,]+)/i);
-    const gSpesa        = grab(/Costo gas inserito:\s*€\s*([0-9\.\,]+)/i);
-    const gTot          = grab(new RegExp("Costo con\\s+"+gName.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+":\\s*€\\s*([0-9\\.\\,]+)","i"));
-    const gQfTot        = grab(/-\s*di cui quota fissa[^:]*:\s*€\s*([0-9\.\,]+)/i);
-    const gQeTot        = grab(/-\s*di cui quota energia\s*:\s*€\s*([0-9\.\,]+)/i);
-    const gQfScontato   = /di cui quota fissa\s*\(scontato per clienti Fastweb\/Vodafone\)/i.test(txt);
-    const gRisp = grab(/Risparmio gas:\s*€\s*([0-9\.\,]+)/i);
-    const gMagg = grab(/L[’']offerta gas in questo caso è superiore di\s*€\s*([0-9\.\,]+)/i);
+    const gName = grabGas(/OFFERTA\s+(FASTWEB GAS FLEX(?:\s+BUSINESS)?)/i) || "FASTWEB GAS FLEX";
+    const gSmc          = grabGas(/Smc fatturati:\s*([^\n]+)/i);
+    const gQc           = grabGas(/Quota consumi materia gas:\s*€\s*([0-9\.\,]+)/i);
+    const gQf           = grabGas(/Quota fissa materia gas:\s*€\s*([0-9\.\,]+)/i);
+    const gSpesa        = grabGas(/Costo gas inserito:\s*€\s*([0-9\.\,]+)/i);
+    const gTot          = grabGas(new RegExp("Costo con\\s+"+gName.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+":\\s*€\\s*([0-9\\.\\,]+)","i"));
+    const gQfTot        = grabGas(/-\s*di cui quota fissa[^:]*:\s*€\s*([0-9\.\,]+)/i);
+    const gQeTot        = grabGas(/-\s*di cui quota energia\s*:\s*€\s*([0-9\.\,]+)/i);
+    const gQfScontato   = /di cui quota fissa\s*\(scontato per clienti Fastweb\/Vodafone\)/i.test(_gasOnlyTxt);
+    const gRisp = grabGas(/Risparmio gas:\s*€\s*([0-9\.\,]+)/i);
+    const gMagg = grabGas(/L[’']offerta gas in questo caso è superiore di\s*€\s*([0-9\.\,]+)/i);
 
     // -- Blocco LUCE (DUAL FIX/FLEX) --
     let luceData = null;
@@ -988,6 +1042,8 @@ function printOfferPdf(kind){
     // ----- Render LUCE FIX/FLEX -----
     if(luceData){
       sectionTitle("Confronto LUCE - periodo selezionato");
+      const _periodoLuceLabel = periodoLuce || periodoRef;
+      if(_periodoLuceLabel) kvRow("Periodo riferimento LUCE", _periodoLuceLabel, {bold:true});
       if(luceData.lSp)  kvRow("Spesa attuale (q. consumi + q. fissa)", "€ " + luceData.lSp, {bold:true});
       if(luceData.lQc)  kvRow("Quota consumi materia energia", "€ " + luceData.lQc, {indent:true});
       if(luceData.lQf)  kvRow("Quota fissa materia energia", "€ " + luceData.lQf, {indent:true});
@@ -1000,6 +1056,8 @@ function printOfferPdf(kind){
     // ----- Render LUCE FLAT (periodo + annuale) -----
     if(luceFlatData){
       sectionTitle("Confronto LUCE FLAT - periodo selezionato");
+      const _periodoLuceFlatLabel = periodoLuce || periodoRef;
+      if(_periodoLuceFlatLabel) kvRow("Periodo riferimento LUCE", _periodoLuceFlatLabel, {bold:true});
       if(luceFlatData.tier)     kvRow("Fascia visualizzata", luceFlatData.tier, {bold:true});
       if(luceFlatData.fMonthly) kvRow("Costo mensile fascia", "€ " + luceFlatData.fMonthly);
       if(luceFlatData.fSoglia)  kvRow("Soglia fascia", "fino a " + luceFlatData.fSoglia + " kWh/anno");
@@ -1022,6 +1080,7 @@ function printOfferPdf(kind){
 
     // ----- Render GAS -----
     sectionTitle((kind==="upsell"?"":"Confronto ") + "GAS - " + (kind==="upsell"?"upsell ":"") + "periodo selezionato");
+    if(periodoGas) kvRow("Periodo riferimento GAS", periodoGas, {bold:true});
     if(gSmc)    kvRow("Smc fatturati nel periodo", gSmc);
     if(gSpesa)  kvRow("Spesa attuale (q. consumi + q. fissa)", "€ " + gSpesa, {bold:true});
     if(gQc)     kvRow("Quota consumi materia gas", "€ " + gQc, {indent:true});
@@ -1182,7 +1241,29 @@ function printOfferPdf(kind){
   // ===== VALIDITÀ E SCADENZA =====
   const scadenza = extract(/Scadenza offerta:\s*([^\n]+)/i);
   const validita = extract(/Validità offerta:\s*([^\n]+)/i);
-  if(scadenza || validita){
+  if(isDualOrUpsell){
+    // DUAL/UPSELL: validità distinte LUCE e GAS
+    sectionTitle("Validità e scadenza");
+    const rows = [];
+    rows.push(["Scadenza offerta", scadenza || "16 giugno"]);
+    if(isDual){
+      // Validità LUCE in base al kind e a domestic/business
+      const isBizDual = /BUSINESS\s+(FIX|FLEX)/i.test(txt);
+      let validitaLuce;
+      if(kind === "dualFlat"){
+        validitaLuce = "36 mesi";
+      } else if(isBizDual){
+        validitaLuce = "36 mesi (anche con opzione Multisito)";
+      } else {
+        validitaLuce = "12 mesi";
+      }
+      rows.push(["Validità offerta LUCE", validitaLuce]);
+      rows.push(["Validità offerta GAS", "12 mesi"]);
+    } else if(kind === "upsell"){
+      rows.push(["Validità offerta GAS", "12 mesi"]);
+    }
+    infoCard(rows);
+  } else if(scadenza || validita){
     sectionTitle("Validità e scadenza");
     const rows = [];
     if(scadenza) rows.push(["Scadenza offerta", scadenza]);
@@ -1630,8 +1711,16 @@ function analyzeBolletta(skipWarning){
     });
     return s/checked.length;
   })();
-  const _psvInfo = computeMediaPSV(checked);
+  // Mesi GAS: se gasState.mesi non è vuoto (DUAL con "periodo diverso"), uso quelli;
+  // altrimenti uso gli stessi della luce.
+  const _gasMesiVals = (gasState.active && gasState.mesi && gasState.mesi.length>0) ? gasState.mesi : checked.map(c=>c.value);
+  const _gasMesiNodes = _gasMesiVals.map(v=>({value:v}));
+  const _psvInfo = computeMediaPSV(_gasMesiNodes);
   const mediaPSV = _psvInfo.value;
+  const numMesiGas = _gasMesiVals.length || numMesi;
+  const periodoGasTxt = _gasMesiVals.length ? `${numMesiGas} mes${numMesiGas===1?"e":"i"} – ${_gasMesiVals.join(", ")}` : periodoTxt;
+  const periodiDiversi = gasState.active && gasState.mesi && gasState.mesi.length>0 &&
+      (gasState.mesi.length !== checked.length || gasState.mesi.some((v,i)=>v !== checked[i]?.value));
 
   const kwPeriodo = parseFloat(document.getElementById("kwFatturati").value) || 0;
   const isPowerOther = (potenzaSel === "altro");
@@ -1716,7 +1805,7 @@ function analyzeBolletta(skipWarning){
       <div class="kv"><div>Costo con Fastweb Luce Fix</div><div>€ ${money(totalFIX)}</div></div>
       <div class="kv"><div>di cui quota fissa${isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(fixedFIX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFIX)}</div></div>
-      <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>16 giugno</strong></div></div>
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFIX)}</div>`
                    : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFIX))}</div>`}
@@ -1740,7 +1829,7 @@ function analyzeBolletta(skipWarning){
       <div class="kv"><div>Costo con Fastweb Luce Flex</div><div>€ ${money(totalFLEX)}</div></div>
       <div class="kv"><div>di cui quota fissa${isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(fixedFLEX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFLEX)}</div></div>
-      <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>16 giugno</strong></div></div>
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFLEX)}</div>`
                     : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFLEX))}</div>`}
@@ -1766,7 +1855,7 @@ function analyzeBolletta(skipWarning){
         <div class="kv"><div>Costo con Fastweb Luce Business Fix</div><div>€ ${money(totalBizFIX)}</div></div>
         <div class="kv"><div>di cui quota fissa${isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(fixedBizFIX)}</div></div>
         <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyBizFIX)}</div></div>
-        <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+        <div class="kv"><div>Scadenza offerta</div><div><strong>16 giugno</strong></div></div>
         <div class="kv"><div>Validità offerta</div><div><strong>36 mesi</strong> (anche con opzione Multisito)</div></div>
         ${diffBizFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffBizFIX)}</div>`
                         : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffBizFIX))}</div>`}
@@ -1790,7 +1879,7 @@ function analyzeBolletta(skipWarning){
         <div class="kv"><div>Costo con Fastweb Luce Business Flex</div><div>€ ${money(totalBizFLEX)}</div></div>
         <div class="kv"><div>di cui quota fissa${isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(fixedBizFLEX)}</div></div>
         <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyBizFLEX)}</div></div>
-        <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+        <div class="kv"><div>Scadenza offerta</div><div><strong>16 giugno</strong></div></div>
         <div class="kv"><div>Validità offerta</div><div><strong>36 mesi</strong> (anche con opzione Multisito)</div></div>
         ${diffBizFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffBizFLEX)}</div>`
                          : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffBizFLEX))}</div>`}
@@ -1813,8 +1902,8 @@ function analyzeBolletta(skipWarning){
       warn.innerHTML = `⚠ Per il gas i mesi <strong>${_psvInfo.missing.join(", ")}</strong> non hanno PSV disponibile e sono stati esclusi dal calcolo.`;
       risultato.appendChild(warn);
     }
-    gasComp = buildGasComputation({ isClient, isBiz, numMesi, mediaPSV });
-    const gasCard = renderGasCard(gasComp, { periodoTxt });
+    gasComp = buildGasComputation({ isClient, isBiz, numMesi: numMesiGas, mediaPSV });
+    const gasCard = renderGasCard(gasComp, { periodoTxt: periodoGasTxt, periodiDiversi, periodoLuceTxt: periodoTxt });
     const actions = document.createElement("div");
     actions.className = "offerActions";
     actions.style.margin = "10px 16px 18px";
@@ -1852,7 +1941,7 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con Fastweb Luce Fix: € ${money(totalFIX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(fixedFIX)}
 - di cui quota energia: € ${money(energyFIX)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: 12 mesi
 ${diffFIX>=0 ? "Risparmio: € "+money(diffFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFIX))}
 
@@ -1872,7 +1961,7 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con Fastweb Luce Flex: € ${money(totalFLEX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(fixedFLEX)}
 - di cui quota energia: € ${money(energyFLEX)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: 12 mesi
 ${diffFLEX>=0 ? "Risparmio: € "+money(diffFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFLEX))}
 
@@ -1891,7 +1980,7 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con Fastweb Luce Business Fix: € ${money(totalBizFIX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(fixedBizFIX)}
 - di cui quota energia: € ${money(energyBizFIX)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: 36 mesi (anche con opzione Multisito)
 ${diffBizFIX>=0 ? "Risparmio: € "+money(diffBizFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffBizFIX))}
 
@@ -1910,7 +1999,7 @@ Costo energia inserito (quota consumi + quota fissa): € ${money(spesaEnergia)}
 Costo con Fastweb Luce Business Flex: € ${money(totalBizFLEX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(fixedBizFLEX)}
 - di cui quota energia: € ${money(energyBizFLEX)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: 36 mesi (anche con opzione Multisito)
 ${diffBizFLEX>=0 ? "Risparmio: € "+money(diffBizFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffBizFLEX))}
 
@@ -1925,6 +2014,7 @@ ${closingNote}`;
     const gName = gasComp.offerName;
     const gasBlock =
 `OFFERTA ${gName.toUpperCase()}
+Periodo gas: ${periodoGasTxt}
 Smc fatturati: ${gasState.smc.toLocaleString("it-IT")} Smc
 Quota consumi materia gas: € ${money(gasState.qc)}
 Quota fissa materia gas: € ${money(gasState.qf)}
@@ -1933,7 +2023,7 @@ Costo gas inserito: € ${money(gasComp.spesaGas)}
 Costo con ${gName}: € ${money(gasComp.totalGas)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(gasComp.fixedGas)}
 - di cui quota energia: € ${money(gasComp.energyGas)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: 12 mesi
 ${gasComp.diffGas>=0 ? "Risparmio gas: € "+money(gasComp.diffGas) : "L’offerta gas in questo caso è superiore di € "+money(Math.abs(gasComp.diffGas))}`;
 
@@ -1961,7 +2051,7 @@ Costo energia inserito: € ${money(spesaEnergia)}
 Costo con ${luceFixName}: € ${money(isBiz?totalBizFIX:totalFIX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(isBiz?fixedBizFIX:fixedFIX)}
 - di cui quota energia: € ${money(isBiz?energyBizFIX:energyFIX)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: ${validitaLuce}
 ${(isBiz?diffBizFIX:diffFIX)>=0
   ? "Risparmio luce: € "+money(isBiz?diffBizFIX:diffFIX)
@@ -1972,16 +2062,18 @@ ${(isBiz?diffBizFIX:diffFIX)>=0
       wDUAL_FIX =
 `---- PREVENTIVO DUAL ${(isBiz?"LUCE BUSINESS FIX":"LUCE FIX")} + GAS ----
 Nome Cliente: ${nome}
-Periodo di riferimento: ${periodoTxt}
+Periodo luce: ${periodoTxt}${periodiDiversi?`\nPeriodo gas:  ${periodoGasTxt}`:""}
 
 ${luceFixBlock}
 
 ${gasBlock}
 
-==== RIEPILOGO DUAL ====
+${periodiDiversi
+  ? "==== RIEPILOGO DUAL ====\nNB: luce e gas si riferiscono a periodi diversi — i risparmi restano indipendenti e non vengono sommati."
+  : `==== RIEPILOGO DUAL ====
 Spesa attuale (luce + gas): € ${money(totFixSpesa)}
 Costo con Fastweb (${luceFixName.toLowerCase()} + ${gName.toLowerCase()}): € ${money(totFixOff)}
-${totFixDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFixDiff) : "Offerta superiore di € "+money(Math.abs(totFixDiff))}
+${totFixDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFixDiff) : "Offerta superiore di € "+money(Math.abs(totFixDiff))}`}
 
 ${closingNote}`;
 
@@ -1996,7 +2088,7 @@ Costo energia inserito: € ${money(spesaEnergia)}
 Costo con ${luceFlexName}: € ${money(isBiz?totalBizFLEX:totalFLEX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(isBiz?fixedBizFLEX:fixedFLEX)}
 - di cui quota energia: € ${money(isBiz?energyBizFLEX:energyFLEX)}
-Scadenza offerta: 25 maggio
+Scadenza offerta: 16 giugno
 Validità offerta: ${validitaLuce}
 ${(isBiz?diffBizFLEX:diffFLEX)>=0
   ? "Risparmio luce: € "+money(isBiz?diffBizFLEX:diffFLEX)
@@ -2007,16 +2099,18 @@ ${(isBiz?diffBizFLEX:diffFLEX)>=0
       wDUAL_FLEX =
 `---- PREVENTIVO DUAL ${(isBiz?"LUCE BUSINESS FLEX":"LUCE FLEX")} + GAS ----
 Nome Cliente: ${nome}
-Periodo di riferimento: ${periodoTxt}
+Periodo luce: ${periodoTxt}${periodiDiversi?`\nPeriodo gas:  ${periodoGasTxt}`:""}
 
 ${luceFlexBlock}
 
 ${gasBlock}
 
-==== RIEPILOGO DUAL ====
+${periodiDiversi
+  ? "==== RIEPILOGO DUAL ====\nNB: luce e gas si riferiscono a periodi diversi — i risparmi restano indipendenti e non vengono sommati."
+  : `==== RIEPILOGO DUAL ====
 Spesa attuale (luce + gas): € ${money(totFlexSpesa)}
 Costo con Fastweb (${luceFlexName.toLowerCase()} + ${gName.toLowerCase()}): € ${money(totFlexOff)}
-${totFlexDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFlexDiff) : "Offerta superiore di € "+money(Math.abs(totFlexDiff))}
+${totFlexDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFlexDiff) : "Offerta superiore di € "+money(Math.abs(totFlexDiff))}`}
 
 ${closingNote}`;
 
@@ -2061,7 +2155,7 @@ ${luceAnnuoLine}`;
           wDUAL_FLAT =
 `---- PREVENTIVO DUAL LUCE FLAT ${tierName} + GAS ----
 Nome Cliente: ${nome}
-Periodo di riferimento: ${periodoTxt}
+Periodo luce: ${periodoTxt}${periodiDiversi?`\nPeriodo gas:  ${periodoGasTxt}`:""}
 
 ${luceFlatBlock}
 
@@ -2115,6 +2209,26 @@ function _renderUpsellMonths(){
   });
 }
 
+/* Mesi GAS in modalità DUAL — completamente indipendenti dai mesi luce */
+function _renderDualGasMonths(preselected){
+  const host = document.getElementById("gasDualMeseChecks");
+  if(!host) return;
+  host.innerHTML = "";
+  host.className = "gasModalMonthsGrid";
+  punData.forEach(m=>{
+    const lbl = document.createElement("label");
+    lbl.className = "monthItem";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = m.month;
+    cb.checked = preselected.includes(m.month);
+    const sp = document.createElement("span");
+    sp.textContent = m.month;
+    lbl.append(cb, sp);
+    host.appendChild(lbl);
+  });
+}
+
 let _pendingGasMode = null; // 'dual' | 'upsell'
 
 function openGasModal(){
@@ -2122,19 +2236,32 @@ function openGasModal(){
   document.getElementById("gasQuotaConsumi").value = gasState.active ? gasState.qc  : "";
   document.getElementById("gasQuotaFissa").value   = gasState.active ? gasState.qf  : "";
   const isUpsell = (_pendingGasMode === "upsell") || (gasState.active && gasState.mode === "upsell");
-  const extra    = document.getElementById("gasUpsellExtra");
+  const upsellExtra = document.getElementById("gasUpsellExtra");
+  const dualExtra   = document.getElementById("gasDualExtra");
   const subtitle = document.getElementById("gasModalSubtitle");
   const title    = document.getElementById("gasModalTitle");
   if(isUpsell){
-    extra.style.display = "block";
+    upsellExtra.style.display = "block";
+    dualExtra.style.display = "none";
     title.textContent = "Dati UPSELL Gas — cliente già Fastweb Luce";
     subtitle.innerHTML = "Inserisci nome cliente, mesi di riferimento e dati gas. La luce <strong>non</strong> viene calcolata in upsell.";
     document.getElementById("gasNomeUpsell").value = document.getElementById("nome").value || "";
     _renderUpsellMonths();
   } else {
-    extra.style.display = "none";
+    upsellExtra.style.display = "none";
+    dualExtra.style.display = "block";
     title.textContent = "Dati consumi GAS";
-    subtitle.innerHTML = "Compila i dati gas riferiti allo <strong>stesso periodo</strong> selezionato per la luce.";
+    subtitle.innerHTML = "Compila i dati gas riferiti al periodo della bolletta gas.";
+    // Configura toggle "periodo diverso"
+    const periodoDiverso = (gasState.mesi && gasState.mesi.length > 0);
+    const cb = document.getElementById("gasPeriodoDiversoCb");
+    const wrap = document.getElementById("gasDualMesiWrap");
+    cb.checked = periodoDiverso;
+    wrap.style.display = periodoDiverso ? "block" : "none";
+    // Mesi preselezionati: se gasState ha mesi, usali; altrimenti i mesi luce correnti
+    const luceCurrent = [...document.querySelectorAll('#periodoCheckboxes input[name="mese"]:checked')].map(c=>c.value);
+    const preselected = periodoDiverso ? gasState.mesi : luceCurrent;
+    _renderDualGasMonths(preselected);
   }
   document.getElementById("gasModal").classList.add("open");
 }
@@ -2154,6 +2281,7 @@ function confirmGasData(){
     return;
   }
   const mode = (_pendingGasMode || gasState.mode || "dual");
+  let mesiGas = [];
   if(mode === "upsell"){
     const nomeUp = document.getElementById("gasNomeUpsell").value.trim();
     if(nomeUp) document.getElementById("nome").value = nomeUp;
@@ -2165,14 +2293,25 @@ function confirmGasData(){
     // In upsell il cliente è per definizione già Fastweb Luce: attivo automaticamente la convergenza
     const clienteFwCb = document.getElementById("clienteFastweb");
     if(clienteFwCb) clienteFwCb.checked = true;
+  } else {
+    // DUAL: se l'utente ha attivato "periodo diverso", raccolgo i mesi gas
+    const periodoDiverso = document.getElementById("gasPeriodoDiversoCb").checked;
+    if(periodoDiverso){
+      const checkedGas = [...document.querySelectorAll('#gasDualMeseChecks input[type="checkbox"]:checked')].map(c=>c.value);
+      if(!checkedGas.length){
+        alert("Seleziona almeno un mese di riferimento per il gas, oppure disattiva l'opzione 'periodo diverso'.");
+        return;
+      }
+      mesiGas = checkedGas;
+    }
   }
-  gasState = { active:true, mode, smc, qc, qf };
+  gasState = { active:true, mode, smc, qc, qf, mesi: mesiGas };
   closeGasModal();
   renderGasChip();
 }
 
 function removeGasData(){
-  gasState = { active:false, mode:null, smc:0, qc:0, qf:0 };
+  gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[] };
   renderGasChip();
 }
 
@@ -2235,7 +2374,8 @@ function renderGasCard(g, ctx){
   card.innerHTML = `
     <div class="offerResult ${g.diffGas>=0 ? "green-bg" : "red-bg"}">
       <h3 class="resultTitle">Offerta ${g.offerName}${gasState.mode==="upsell"?" — UPSELL":" (DUAL)"}</h3>
-      <p class="periodoRef">Periodo di riferimento: ${ctx.periodoTxt}</p>
+      <p class="periodoRef">Periodo di riferimento gas: ${ctx.periodoTxt}</p>
+      ${ctx.periodiDiversi ? `<p class="periodoRef" style="color:#a0660b; font-weight:700; font-size:14px">⚠ Periodo gas diverso dalla luce (luce: ${ctx.periodoLuceTxt})</p>` : ""}
       <div class="sectionTitle">Analisi periodo</div>
       <div class="kv"><div>Smc fatturati nel periodo</div><div><strong>${gasState.smc.toLocaleString("it-IT")} Smc</strong></div></div>
       <div class="kv"><div>Quota consumi materia gas</div><div>€ ${money(gasState.qc)}</div></div>
@@ -2244,7 +2384,7 @@ function renderGasCard(g, ctx){
       <div class="kv"><div>Costo con ${g.offerName}</div><div>€ ${money(g.totalGas)}</div></div>
       <div class="kv"><div>di cui quota fissa${g.isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(g.fixedGas)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(g.energyGas)}</div></div>
-      <div class="kv"><div>Scadenza offerta</div><div><strong>25 maggio</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>16 giugno</strong></div></div>
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${gasState.mode==="upsell"
         ? `<div class="hint" style="margin-top:6px">Modalità <strong>UPSELL</strong>: cliente già Fastweb Luce. Only Gas non gestibile.</div>`
@@ -2308,6 +2448,21 @@ document.addEventListener("DOMContentLoaded", ()=>{
     openGasModal();
   });
   document.getElementById("gasChipRemove").addEventListener("click", removeGasData);
+
+  // Toggle "periodo gas diverso da luce"
+  const periodoCb = document.getElementById("gasPeriodoDiversoCb");
+  if(periodoCb) periodoCb.addEventListener("change", e=>{
+    const wrap = document.getElementById("gasDualMesiWrap");
+    wrap.style.display = e.target.checked ? "block" : "none";
+    if(e.target.checked){
+      // Se non c'è ancora una selezione gas, pre-popola coi mesi luce
+      const hasChecked = !!document.querySelector('#gasDualMeseChecks input[type="checkbox"]:checked');
+      if(!hasChecked){
+        const luceCurrent = [...document.querySelectorAll('#periodoCheckboxes input[name="mese"]:checked')].map(c=>c.value);
+        _renderDualGasMonths(luceCurrent);
+      }
+    }
+  });
 
   document.getElementById("dualChoiceFix").addEventListener("click", ()=>executeDualChoice("fix"));
   document.getElementById("dualChoiceFlex").addEventListener("click", ()=>executeDualChoice("flex"));
