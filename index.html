@@ -100,6 +100,10 @@
   .savings{display:inline-block; padding:8px 12px; border-radius:10px; font-weight:800; margin-top:8px}
   .savings.ok{background:#bff5bf}
   .savings.ko{background:#ffd0d0}
+  .welcomeBonus{margin-top:12px; padding:12px 14px; border-radius:12px; background:linear-gradient(135deg, var(--grad-a), var(--grad-b)); border:1.5px solid #d6a800; color:var(--violet); font-weight:800; box-shadow:0 6px 18px rgba(244,190,0,.28); display:flex; gap:10px; align-items:flex-start; line-height:1.35}
+  .welcomeBonus .icon{font-size:22px; line-height:1}
+  .welcomeBonus .title{font-size:15px; font-weight:900; letter-spacing:.2px; display:block; margin-bottom:2px}
+  .welcomeBonus .desc{font-size:13px; font-weight:700; opacity:.95}
   .offerActions{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px}
 
   #toggleRiepilogoBtn{width:100%; margin-top:12px}
@@ -518,7 +522,47 @@ let currentFlatAnalysis = null;
 
 const TIER_NAMES=["START","LIGHT","PRO","MAXI","ULTRA"];
 const THRESHOLDS=[800,1500,2500,3500,4500];
-const BASE_LISTINO_3KW=[41,56,76,91,106];
+// Profili FLAT: valori legacy (fino al 25 luglio 2026) e nuovi (dal 26 luglio 2026 in poi, definitivi)
+const BASE_LISTINO_3KW_LEGACY = [41, 56, 76, 91, 106];
+const BASE_LISTINO_3KW_NEW    = [47, 64, 87, 109, 130];
+function _isFlatNewActive(){
+  const today = new Date();
+  const soglia = new Date(2026, 6, 26); // 26 luglio 2026 (month 0-based: 6=luglio)
+  return today >= soglia;
+}
+function getActiveFlatPrices(){
+  return _isFlatNewActive() ? BASE_LISTINO_3KW_NEW : BASE_LISTINO_3KW_LEGACY;
+}
+function getActiveFlatValidita(){
+  return _isFlatNewActive() ? "24 mesi" : "36 mesi";
+}
+// Welcome Bonus 15€ in 3 rate da 5€ — valido 10/7/2026 → 27/8/2026, solo LUCE DOMESTICA
+function isWelcomeBonusActive(){
+  const today = new Date();
+  const start = new Date(2026, 6, 10, 0, 0, 0);         // 10 luglio 2026
+  const end   = new Date(2026, 7, 27, 23, 59, 59);      // 27 agosto 2026 EOD
+  return today >= start && today <= end;
+}
+const WELCOME_BONUS_TITLE = "Welcome Bonus Luce";
+const WELCOME_BONUS_DESC  = "15€ di sconto per i nuovi clienti, erogati automaticamente in 3 rate da 5€ nelle prime bollette utili dopo l'attivazione. Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico).";
+function getWelcomeBonusHTML(){
+  if(!isWelcomeBonusActive()) return "";
+  return `
+    <div class="welcomeBonus">
+      <div class="icon">🎁</div>
+      <div>
+        <span class="title">${WELCOME_BONUS_TITLE} — 15€ inclusi (3 rate da 5€)</span>
+        <span class="desc">${WELCOME_BONUS_DESC}</span>
+      </div>
+    </div>
+  `;
+}
+function getWelcomeBonusText(){
+  if(!isWelcomeBonusActive()) return "";
+  return `\n🎁 WELCOME BONUS LUCE\n15€ di sconto per i nuovi clienti, in 3 rate da 5€ nelle prime bollette utili dopo l'attivazione. Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico).\n`;
+}
+// Manteniamo il nome vecchio per retro-compatibilità nel codice esistente
+const BASE_LISTINO_3KW = BASE_LISTINO_3KW_LEGACY; // deprecato, non usare direttamente
 const CONVERGENCE_DISCOUNT=11;
 const POWER_STEP_PRICE=5;
 const TIER_EXTRA=[0.30,0.27,0.21,0.20,0.13];
@@ -562,7 +606,7 @@ function getPowerIncrement(potenza){
   return 0;
 }
 function getListinoMonthlyByPower(tierIdx, potenza){
-  return BASE_LISTINO_3KW[tierIdx] + getPowerIncrement(potenza);
+  return getActiveFlatPrices()[tierIdx] + getPowerIncrement(potenza);
 }
 function getClientMonthlyByPower(tierIdx, potenza){
   return getListinoMonthlyByPower(tierIdx, potenza) - CONVERGENCE_DISCOUNT;
@@ -652,7 +696,7 @@ Costo Mensile Fascia: € ${money(opt.monthly)} ${data.isClient ? `(sconto conve
 Soglia fascia: fino a ${opt.threshold.toLocaleString("it-IT")} kWh/anno
 ${opt.tierIdx===4 ? `Tolleranza fascia ULTRA: fino a ${(opt.threshold + ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno\n` : ""}Extra oltre soglia: € ${extraRateTxt}/kWh
 Restituzione consumi non utilizzati: € ${refundRateTxt}/kWh
-Validità offerta: 36 mesi
+Validità offerta: ${getActiveFlatValidita()}
 Potenza contatore: ${data.potenzaValueText}
 
 ANALISI BOLLETTA
@@ -664,7 +708,7 @@ ANALISI ANNUALE
 Consumo annuale inserito: ${data.consumoAnnuo.toLocaleString("it-IT")} kWh
 Annuale fascia (base): € ${money(opt.baseAnnual)}
 ${extraRow}${refundRow}Totale annuale (canone + extra - rimborso): € ${money(opt.totalAnnual)}
-${compareRow}${data.hasSpesaAnnua ? `Spesa annua inserita: € ${money(data.spesaAnnuaInput)}\n` : ""}${annualDeltaRow}
+${compareRow}${data.hasSpesaAnnua ? `Spesa annua inserita: € ${money(data.spesaAnnuaInput)}\n` : ""}${annualDeltaRow}${getWelcomeBonusText()}
 Il presente calcolo è da intendersi come totale bolletta. Include quindi anche iva, oneri di sistema e di trasporto, a eccezione del canone rai che è a parte.
 Per ulteriori dettagli, contattaci!`;
 }
@@ -1251,7 +1295,7 @@ function printOfferPdf(kind){
       const isBizDual = /BUSINESS\s+(FIX|FLEX)/i.test(txt);
       let validitaLuce;
       if(kind === "dualFlat"){
-        validitaLuce = "36 mesi";
+        validitaLuce = getActiveFlatValidita();
       } else if(isBizDual){
         validitaLuce = "36 mesi (anche con opzione Multisito)";
       } else {
@@ -1269,6 +1313,31 @@ function printOfferPdf(kind){
     if(scadenza) rows.push(["Scadenza offerta", scadenza]);
     if(validita) rows.push(["Validità offerta", validita]);
     infoCard(rows);
+  }
+
+  // ===== WELCOME BONUS (solo se presente nel testo — significa che è attivo e applicabile a questa offerta) =====
+  const hasWelcomeBonus = /WELCOME BONUS LUCE/i.test(txt);
+  if(hasWelcomeBonus){
+    sectionTitle("Welcome Bonus Luce");
+    const bH = 16;
+    // Box giallo Fastweb con bordo
+    doc.setFillColor(247, 189, 43);      // grad-a
+    doc.setDrawColor(214, 168, 0);
+    doc.setLineWidth(0.6);
+    doc.roundedRect(L, y, W, bH, 2.5, 2.5, "FD");
+    // Icona regalo (emoji potrebbe non renderizzare, uso testo compatto)
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(43, 35, 90);        // violet
+    doc.text("15€ INCLUSI", L+4, y+6);
+    doc.setFontSize(8);
+    doc.setFont("helvetica","normal");
+    const bonusLine1 = "Nuovo cliente: 15€ di sconto in 3 rate da 5€ nelle prime bollette utili.";
+    const bonusLine2 = "Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico) - promo 10/07 - 27/08/2026.";
+    doc.text(bonusLine1, L+4, y+10);
+    doc.text(bonusLine2, L+4, y+13.5);
+    y += bH + 3;
+    setBody();
   }
 
   // ===== NOTE =====
@@ -1348,7 +1417,7 @@ function renderFlatCards(){
     </div>
     <div class="cards" id="cardsWrap"></div>
     <div class="hint" style="text-align:center;margin-top:10px;font-weight:800">
-      Tutte le offerte FLAT sono valide per <strong>36 mesi</strong>
+      Tutte le offerte FLAT sono valide per <strong>${getActiveFlatValidita()}</strong>
     </div>`;
 
   const cardsWrap=container.querySelector("#cardsWrap");
@@ -1550,7 +1619,7 @@ function buildFlatCardHTML(data, tierIdxToShow){
       ${ultraTolRow}
       <div class="kv"><div>Extra oltre soglia</div><div><strong>€ ${extraRateTxt}/kWh</strong></div></div>
       <div class="kv"><div>Restituzione consumi non utilizzati</div><div><strong>€ ${refundRateTxt}/kWh</strong></div></div>
-      <div class="kv"><div>Validità offerta</div><div><strong>36 mesi</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>${getActiveFlatValidita()}</strong></div></div>
 
       <div class="sectionTitle">Analisi bolletta (periodo selezionato)</div>
       <div class="kv"><div>Totale Bolletta inserito</div><div>€ ${money(data.totaleBolletta)}</div></div>
@@ -1573,7 +1642,7 @@ function buildFlatCardHTML(data, tierIdxToShow){
           ? `<div class="savings ok">Totale risparmio annuo: € ${money(annualDeltaVsInput)}</div>`
           : `<div class="savings ko">Spesa annua superiore: € ${money(Math.abs(annualDeltaVsInput))}</div>`}
       ` : ``}
-
+      ${getWelcomeBonusHTML()}
       <div class="offerActions">
         <button class="btn whatsapp" onclick="sendWhatsApp('canone')">Invia via WhatsApp</button>
         <button class="btn secondary" onclick="printOfferPdf('canone')">Stampa Preventivo</button>
@@ -1809,6 +1878,7 @@ function analyzeBolletta(skipWarning){
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFIX)}</div>`
                    : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFIX))}</div>`}
+      ${getWelcomeBonusHTML()}
       <div class="offerActions">
         <button class="btn whatsapp" onclick="sendWhatsApp('fix')">Invia via WhatsApp</button>
         <button class="btn secondary" onclick="printOfferPdf('fix')">Stampa Preventivo</button>
@@ -1833,6 +1903,7 @@ function analyzeBolletta(skipWarning){
       <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
       ${diffFLEX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFLEX)}</div>`
                     : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFLEX))}</div>`}
+      ${getWelcomeBonusHTML()}
       <div class="offerActions">
         <button class="btn whatsapp" onclick="sendWhatsApp('flex')">Invia via WhatsApp</button>
         <button class="btn secondary" onclick="printOfferPdf('flex')">Stampa Preventivo</button>
@@ -1944,7 +2015,7 @@ Costo con Fastweb Luce Fix: € ${money(totalFIX)}
 Scadenza offerta: 16 giugno
 Validità offerta: 12 mesi
 ${diffFIX>=0 ? "Risparmio: € "+money(diffFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFIX))}
-
+${getWelcomeBonusText()}
 ${closingNote}`;
 
   wFLEX =
@@ -1964,7 +2035,7 @@ Costo con Fastweb Luce Flex: € ${money(totalFLEX)}
 Scadenza offerta: 16 giugno
 Validità offerta: 12 mesi
 ${diffFLEX>=0 ? "Risparmio: € "+money(diffFLEX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFLEX))}
-
+${getWelcomeBonusText()}
 ${closingNote}`;
 
   wBizFIX =
@@ -2074,7 +2145,7 @@ ${periodiDiversi
 Spesa attuale (luce + gas): € ${money(totFixSpesa)}
 Costo con Fastweb (${luceFixName.toLowerCase()} + ${gName.toLowerCase()}): € ${money(totFixOff)}
 ${totFixDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFixDiff) : "Offerta superiore di € "+money(Math.abs(totFixDiff))}`}
-
+${!isBiz ? getWelcomeBonusText() : ""}
 ${closingNote}`;
 
       // ---- DUAL FLEX ----
@@ -2111,7 +2182,7 @@ ${periodiDiversi
 Spesa attuale (luce + gas): € ${money(totFlexSpesa)}
 Costo con Fastweb (${luceFlexName.toLowerCase()} + ${gName.toLowerCase()}): € ${money(totFlexOff)}
 ${totFlexDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFlexDiff) : "Offerta superiore di € "+money(Math.abs(totFlexDiff))}`}
-
+${!isBiz ? getWelcomeBonusText() : ""}
 ${closingNote}`;
 
       // ---- DUAL FLAT (closure: fascia attualmente visualizzata, no cumulo annuale) ----
@@ -2142,7 +2213,7 @@ ${luceAnnuoDiff>=0 ? "RISPARMIO ANNUALE LUCE: € "+money(luceAnnuoDiff) : "Magg
 `OFFERTA FASTWEB LUCE FLAT — FASCIA ${tierName}
 Costo mensile fascia: € ${money(flatOpt.monthly)} ${isClient?"(cliente Fastweb/Vodafone, sconto convergenza incluso)":"(listino)"}
 Soglia fascia: fino a ${flatOpt.threshold.toLocaleString("it-IT")} kWh/anno
-Validità offerta: 36 mesi
+Validità offerta: ${getActiveFlatValidita()}
 
 Analisi LUCE - periodo
 Spesa bolletta attuale (periodo): € ${money(totaleBolletta)}
@@ -2162,7 +2233,7 @@ ${luceFlatBlock}
 ${gasBlock}
 
 NB: i risparmi luce e gas sono indipendenti e non vengono sommati.
-
+${getWelcomeBonusText()}
 ${closingNote}`;
         };
         _dualHasFlat = true;
