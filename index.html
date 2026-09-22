@@ -581,8 +581,12 @@ const NEW_OFFERS_START = new Date(2026, 7, 28); // 28 agosto 2026 (month 0-based
 function isNewOffersActive(){ return new Date() >= NEW_OFFERS_START; }
 
 const POWER_STEP_PRICE=5;
-const TIER_EXTRA=[0.30,0.27,0.21,0.20,0.13];
-const TIER_REFUND=[0.30,0.27,0.21,0.20,0.13];
+// Corrispettivi extra soglia / restituzione per fascia (€/kWh) — aggiornati 09/2026
+// START 0,300 · LIGHT 0,283 · PRO 0,269 · MAXI 0,259 · ULTRA 0,245
+const TIER_EXTRA=[0.300,0.283,0.269,0.259,0.245];
+const TIER_REFUND=[0.300,0.283,0.269,0.259,0.245];
+// I corrispettivi €/kWh hanno 3 decimali significativi: formatter dedicato
+function rateTxt(n){ return (n||0).toLocaleString("it-IT",{minimumFractionDigits:3, maximumFractionDigits:3}); }
 const ULTRA_TOLERANCE=500;
 
 // Sconto convergenza FLAT: 11€ fino al 27/08/2026, poi 15€
@@ -703,8 +707,8 @@ function buildFlatOfferTextForTier(tierIdx){
 
   const listinoMensile = getListinoMonthlyByPower(opt.tierIdx, data.potenzaSel);
   const clienteMensile = getClientMonthlyByPower(opt.tierIdx, data.potenzaSel);
-  const extraRateTxt = opt.extraRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
-  const refundRateTxt = opt.refundRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const extraRateTxt = rateTxt(opt.extraRate);
+  const refundRateTxt = rateTxt(opt.refundRate);
   const extraRow = opt.extraKwh>0 ? `Extra oltre soglia: ${opt.extraKwh.toLocaleString("it-IT")} kWh → € ${money(opt.extraAnnual)}\n` : "";
   const refundRow = opt.marginKwh>0 ? `Rimborso sotto soglia: ${opt.marginKwh.toLocaleString("it-IT")} kWh → - € ${money(opt.potentialRefund)}\n` : "";
   const periodBase = opt.monthly * data.numMesi;
@@ -1480,7 +1484,7 @@ function renderFlatCards(){
     const price=isClientR ? getClientMonthlyByPower(t, riepilogoPower) : list;
     const soglia=THRESHOLDS[t].toLocaleString("it-IT");
     const showOld=isClientR;
-    const extra=TIER_EXTRA[t].toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
+    const extra=rateTxt(TIER_EXTRA[t]);
     const ultraNote = t===4 ? `<br/>tolleranza fino a ${(THRESHOLDS[t]+ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno` : "";
 
     const card=document.createElement("div");
@@ -1618,8 +1622,8 @@ function buildFlatCardHTML(data, tierIdxToShow){
   const best = data.options.find(o => o.tierIdx === data.bestTierIdx);
   const listinoMensile = getListinoMonthlyByPower(opt.tierIdx, data.potenzaSel);
   const clienteMensile = getClientMonthlyByPower(opt.tierIdx, data.potenzaSel);
-  const extraRateTxt = opt.extraRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
-  const refundRateTxt = opt.refundRate.toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const extraRateTxt = rateTxt(opt.extraRate);
+  const refundRateTxt = rateTxt(opt.refundRate);
   const ultraTolRow = opt.tierIdx===4
     ? `<div class="kv"><div>Tolleranza fascia ULTRA</div><div><strong>fino a ${(opt.threshold + ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno</strong></div></div>`
     : "";
