@@ -2751,7 +2751,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
           <h2>Andamento di mercato — oggi</h2>
           <span class="mk-tag">non usato nel calcolo</span>
           ${vecchio}
-          <span class="mk-src">Prezzi di borsa GME, solo indicativi. Le offerte qui sotto si calcolano con gli indici mensili PUN/PSV da contratto, che sono diversi da questi.</span>
+          <span class="mk-src">Indici GME giornalieri, solo indicativi. Le offerte qui sotto si calcolano con gli indici mensili PUN/PSV da contratto, che sono diversi da questi.</span>
         </div>
         <div class="mk-grid">
           ${mkPannello({
@@ -2762,11 +2762,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
             extra: fasce, serie: serie.map(x => x.pun),
           })}
           ${mkPannello({
-            eti: "Gas — MGP-GAS", colore: "#ea580c",
+            eti: "Gas — IG Index GME", colore: "#ea580c",
             val: m.gas && m.gas.smc, prec: pGas ? pGas.gas : (m.gas && m.gas.prec),
             unita: "€/Smc", dec: 5,
             giorno: m.gas && m.gas.giorno, precGiorno: pGas && pGas.d,
-            extra: "prezzo di borsa al PSV, non l'indice PSV-DA dei contratti",
+            extra: m.gas && m.gas.mwh != null
+              ? `${mkNum(m.gas.mwh, 2)} €/MWh · indice ufficiale del mercato gas italiano`
+              : "indice ufficiale del mercato gas italiano",
             serie: serie.map(x => x.gas),
           })}
         </div>`;
