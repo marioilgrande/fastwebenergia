@@ -576,9 +576,22 @@ const BASE_LISTINO_3KW = BASE_LISTINO_3KW_LEGACY; // deprecato, non usare dirett
    - Gas Business: sconto convergenza -20€ (canone -> 0€)
    - Welcome Bonus: NON più applicabile (già gestito dalla finestra 10/07-27/08)
    - Scadenze differenziate per offerta
+   ------------------------------------------------------------
+   NOVITÀ OFFERTE dal 26 SETTEMBRE 2026 (attivazione automatica)
+   B2C:
+   - Luce FIX: 0,190 -> 0,198 €/kWh ; sconto convergenza -7€ -> -5€
+   - Luce FLEX: PUN + 0,026 €/kWh confermato ; sconto convergenza -7€ -> -5€
+   - Luce FLAT: griglia confermata, durata 24 mesi ; sconto convergenza -15€ -> -10€
+   - Gas Flex: PSV + 0,10 -> PSV + 0,12 €/Smc ; sconto convergenza -15€ -> -10€
+   B2B (prezzi tutti confermati):
+   - Luce FIX Business 0,180 €/kWh (24 mesi), FLEX Business PUN + 0,030,
+     Gas Flex Business PSV + 0,13 ; sconto convergenza torna a -10€ per tutte
+   - Scadenze: tutte al 7 ottobre
    ============================================================ */
 const NEW_OFFERS_START = new Date(2026, 7, 28); // 28 agosto 2026 (month 0-based: 7=agosto)
 function isNewOffersActive(){ return new Date() >= NEW_OFFERS_START; }
+const SEP26_START = new Date(2026, 8, 26); // 26 settembre 2026 (month 0-based: 8=settembre)
+function isSep26Active(){ return new Date() >= SEP26_START; }
 
 const POWER_STEP_PRICE=5;
 // Corrispettivi extra soglia / restituzione per fascia (€/kWh) — aggiornati 09/2026
@@ -589,20 +602,34 @@ const TIER_REFUND=[0.300,0.283,0.269,0.259,0.245];
 function rateTxt(n){ return (n||0).toLocaleString("it-IT",{minimumFractionDigits:3, maximumFractionDigits:3}); }
 const ULTRA_TOLERANCE=500;
 
-// Sconto convergenza FLAT: 11€ fino al 27/08/2026, poi 15€
-function getConvergenceDiscount(){ return isNewOffersActive() ? 15 : 11; }
+// Sconto convergenza FLAT: 11€ -> 15€ (28/08) -> 10€ (26/09)
+function getConvergenceDiscount(){
+  if(isSep26Active())      return 10;
+  if(isNewOffersActive())  return 15;
+  return 11;
+}
 
-const DOM_FIX_RAW = 0.190;
+// Luce FIX domestico: 0,190 €/kWh -> 0,198 €/kWh dal 26/09/2026
+function getDomFixRaw(){ return isSep26Active() ? 0.198 : 0.190; }
 const DOM_FLEX_SPREAD = 0.026;
 const DOM_CANONE_LISTINO = 13;
-// Domestico FIX/FLEX: sconto convergenza 5€ (canone 8) -> dal 28/08 sconto 7€ (canone 6)
-function getDomCanoneConv(){ return isNewOffersActive() ? (DOM_CANONE_LISTINO - 7) : 8; }
+// Domestico FIX/FLEX: sconto 5€ -> 7€ (28/08) -> 5€ (26/09)
+function getDomCanoneConv(){
+  if(isSep26Active())      return DOM_CANONE_LISTINO - 5;  // canone 8
+  if(isNewOffersActive())  return DOM_CANONE_LISTINO - 7;  // canone 6
+  return 8;
+}
 
-const BIZ_FIX_RAW = 0.180;
+// Luce FIX Business: 0,180 €/kWh confermato
+function getBizFixRaw(){ return 0.180; }
 const BIZ_FLEX_SPREAD = 0.030;
 const BIZ_CANONE_LISTINO = 20;
-// Business FIX/FLEX: sconto convergenza 10€ (canone 10) -> dal 28/08 sconto 20€ (canone 0)
-function getBizCanoneConv(){ return isNewOffersActive() ? (BIZ_CANONE_LISTINO - 20) : 10; }
+// Business FIX/FLEX: sconto 10€ -> 20€ (28/08) -> torna a 10€ (26/09)
+function getBizCanoneConv(){
+  if(isSep26Active())      return BIZ_CANONE_LISTINO - 10; // canone 10
+  if(isNewOffersActive())  return BIZ_CANONE_LISTINO - 20; // canone 0
+  return 10;
+}
 
 // ===== SCADENZE per singola offerta =====
 // Prima del 28/08/2026 tutte "16 giugno"; dal 28/08 differenziate.
@@ -616,7 +643,18 @@ const OFFER_EXPIRY_NEW = {
   gasDom:       "25 settembre",
   gasBiz:       "25 settembre"
 };
+// Dal 26/09/2026 tutte le offerte scadono il 7 ottobre
+const OFFER_EXPIRY_SEP26 = {
+  flat:         "7 ottobre",
+  fix:          "7 ottobre",
+  flex:         "7 ottobre",
+  businessFix:  "7 ottobre",
+  businessFlex: "7 ottobre",
+  gasDom:       "7 ottobre",
+  gasBiz:       "7 ottobre"
+};
 function getExpiry(offerKey){
+  if(isSep26Active())      return OFFER_EXPIRY_SEP26[offerKey] || OFFER_EXPIRY_LEGACY;
   if(!isNewOffersActive()) return OFFER_EXPIRY_LEGACY;
   return OFFER_EXPIRY_NEW[offerKey] || OFFER_EXPIRY_LEGACY;
 }
@@ -633,14 +671,23 @@ function getBizFlexValidita(){
 const OFFER_VALIDITY_TEXT = "Validità offerta: 12 mesi";
 
 // ===== GAS =====
-const GAS_DOM_SPREAD = 0.10;
-const GAS_BIZ_SPREAD = 0.13;
+// Gas domestico: PSV + 0,10 €/Smc -> PSV + 0,12 €/Smc dal 26/09/2026
+function getGasDomSpread(){ return isSep26Active() ? 0.12 : 0.10; }
+const GAS_BIZ_SPREAD = 0.13; // confermato
 const GAS_DOM_CANONE_LISTINO = 15;
-// Gas domestico: canone cliente 4€ -> dal 28/08 commercializzazione ZERO
-function getGasDomCanoneConv(){ return isNewOffersActive() ? 0 : 4; }
+// Gas domestico: canone 4€ -> 0€ (28/08, commercializzazione zero) -> 5€ (26/09, sconto 10€)
+function getGasDomCanoneConv(){
+  if(isSep26Active())      return GAS_DOM_CANONE_LISTINO - 10; // canone 5
+  if(isNewOffersActive())  return 0;
+  return 4;
+}
 const GAS_BIZ_CANONE_LISTINO = 20;
-// Gas Business: canone cliente 10€ -> dal 28/08 sconto 20€ (canone 0)
-function getGasBizCanoneConv(){ return isNewOffersActive() ? (GAS_BIZ_CANONE_LISTINO - 20) : 10; }
+// Gas Business: canone 10€ -> 0€ (28/08, sconto 20€) -> torna a 10€ (26/09, sconto 10€)
+function getGasBizCanoneConv(){
+  if(isSep26Active())      return GAS_BIZ_CANONE_LISTINO - 10; // canone 10
+  if(isNewOffersActive())  return GAS_BIZ_CANONE_LISTINO - 20; // canone 0
+  return 10;
+}
 
 let gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[] };
 let wDUAL_FIX = "", wDUAL_FLEX = "", wDUAL_FLAT = "", wUPSELL = "";
@@ -1542,7 +1589,7 @@ function renderRiepilogo(){
     </div>
     <div class="offerResult" style="margin-top:10px">
       <div class="sectionTitle">Fastweb Luce Fix</div>
-      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,190/kWh</strong> (+ disp. €0,011 → <strong>0,201</strong> €/kWh)</div>
+      <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€${rateTxt(getDomFixRaw())}/kWh</strong> (+ disp. €0,011 → <strong>${rateTxt(getDomFixRaw()+0.011)}</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${getExpiryText('fix')} • ${OFFER_VALIDITY_TEXT}</div>
       <div class="divider"></div>
       <div class="sectionTitle">Fastweb Luce Flex</div>
@@ -1550,7 +1597,7 @@ function renderRiepilogo(){
       <div class="hint" style="margin-top:6px">${getExpiryText('flex')} • ${OFFER_VALIDITY_TEXT}</div>
       <div class="divider"></div>
       <div class="sectionTitle">Fastweb Gas Flex</div>
-      <div>Commercializzazione: <strong>€${isClientR?getGasDomCanoneConv():GAS_DOM_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Gas: <strong>PSV + €0,10/Smc</strong></div>
+      <div>Commercializzazione: <strong>€${isClientR?getGasDomCanoneConv():GAS_DOM_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Gas: <strong>PSV + €${getGasDomSpread().toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})}/Smc</strong></div>
       <div class="hint" style="margin-top:6px">${getExpiryText('gasDom')} • Validità offerta: 12 mesi • Attivabile in DUAL con luce contestuale o in upsell su clienti Fastweb Luce</div>
     </div>
     <div class="violetSeparator"></div>`;
@@ -1572,7 +1619,7 @@ function renderRiepilogo(){
     </div>
     <div class="offerResult" style="margin-top:10px">
       <div class="sectionTitle">Fastweb Luce Business Fix</div>
-      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€0,180/kWh</strong> (+ disp. €0,011 → <strong>0,191</strong> €/kWh)</div>
+      <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€${rateTxt(getBizFixRaw())}/kWh</strong> (+ disp. €0,011 → <strong>${rateTxt(getBizFixRaw()+0.011)}</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${getExpiryText('businessFix')} • Validità offerta: ${getBizFixValidita()}</div>
       <div class="divider"></div>
       <div class="sectionTitle">Fastweb Luce Business Flex</div>
@@ -1867,7 +1914,7 @@ function analyzeBolletta(skipWarning){
   const disp = 0.011;
 
   const canoneDom   = isClient ? getDomCanoneConv() : DOM_CANONE_LISTINO;
-  const kwhFixDom   = DOM_FIX_RAW + disp;
+  const kwhFixDom   = getDomFixRaw() + disp;
   const kwhFlexDom  = mediaPUN + DOM_FLEX_SPREAD + disp;
   const fixedFIX    = canoneDom * numMesi;
   const energyFIX   = kwPeriodo * kwhFixDom;
@@ -1879,7 +1926,7 @@ function analyzeBolletta(skipWarning){
   const diffFLEX    = spesaEnergia - totalFLEX;
 
   const canoneBiz   = isClient ? getBizCanoneConv() : BIZ_CANONE_LISTINO;
-  const kwhFixBiz   = BIZ_FIX_RAW + disp;
+  const kwhFixBiz   = getBizFixRaw() + disp;
   const kwhFlexBiz  = mediaPUN + BIZ_FLEX_SPREAD + disp;
   const fixedBizFIX   = canoneBiz * numMesi;
   const energyBizFIX  = kwPeriodo * kwhFixBiz;
@@ -2486,7 +2533,7 @@ function buildGasComputation(ctx){
   const isBiz    = ctx.isBiz;
   const numMesi  = ctx.numMesi;
   const mediaPSV = ctx.mediaPSV;
-  const spread   = isBiz ? GAS_BIZ_SPREAD : GAS_DOM_SPREAD;
+  const spread   = isBiz ? GAS_BIZ_SPREAD : getGasDomSpread();
   const canone   = isBiz
     ? (isClient ? getGasBizCanoneConv() : GAS_BIZ_CANONE_LISTINO)
     : (isClient ? getGasDomCanoneConv() : GAS_DOM_CANONE_LISTINO);
