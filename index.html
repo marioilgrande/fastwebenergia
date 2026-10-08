@@ -91,6 +91,18 @@
   .offerResult{background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 16px 18px; margin:14px 0; box-shadow:0 8px 22px rgba(124,112,180,.12)}
   .offerResult.green-bg{background:var(--ok)}
   .offerResult.red-bg{background:var(--bad)}
+  /* luce = arancio, gas = blu (come il comparatore unico) */
+  .offerResult.svc-luce{border-left:6px solid #f57c00}
+  .offerResult.svc-gas{border-left:6px solid #0277bd}
+  .svc-luce .resultTitle{color:#e65100}
+  .svc-gas .resultTitle{color:#0277bd}
+  .svcHead{display:flex; align-items:center; gap:10px; font-weight:900; font-size:16px; margin:22px 0 4px; padding:10px 14px; border-radius:12px; letter-spacing:.2px}
+  .svcHead .ic{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex:0 0 30px}
+  .svcHead.luce{background:#fff3e0; color:#e65100} .svcHead.luce .ic{background:#e65100}
+  .svcHead.gas{background:#e3f2fd; color:#0277bd} .svcHead.gas .ic{background:#0277bd}
+  .flatNavLabel.luce{color:#e65100 !important} .flatNavLabel.gas{color:#0277bd !important}
+  .flatNavWrap.svc-luce .flatNavBtn{background:#f57c00}
+  .flatNavWrap.svc-gas .flatNavBtn{background:#0277bd}
   .resultTitle{margin:0 0 8px; font-size:18px}
   .periodoRef{margin:0 0 10px; font-weight:700; color:#3c356e}
   .kv{display:grid; grid-template-columns:minmax(180px,1fr) minmax(120px,1fr); gap:8px; margin:8px 0}
@@ -939,7 +951,7 @@ function renderQuotePdf(m){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"mm", format:"a4" });
   const BRAND_D=[70,60,130], DARK=[33,28,70], TEXT=[60,60,75], MUTED=[120,120,140],
-        BG_SOFT=[246,244,252], ACCENT=[247,189,43], GASC=[234,108,40],
+        BG_SOFT=[246,244,252], ACCENT=[247,189,43], LUCEC=[239,120,0], GASC=[2,119,189],
         OK=[30,135,70], KO=[195,55,70], OK_BG=[226,245,232], KO_BG=[253,232,234], RULE=[225,220,240];
   const PAGE_W=210, PAGE_H=297, L=14, W=PAGE_W-2*L, GAP=4;
   const E = n => "€ " + moneyG(Math.abs(n));
@@ -1038,9 +1050,9 @@ function renderQuotePdf(m){
       const x = L + (cols===2 ? i*(cw+GAP) : 0);
       const yy = cols===2 ? y : y + (i ? 0 : 0);
       doc.setFillColor(...BG_SOFT); doc.roundedRect(x, yy, cw, cardH, 2, 2, "F");
-      const band = o.c.tipo==="gas" ? GASC : ACCENT;
+      const band = o.c.tipo==="gas" ? GASC : LUCEC;
       doc.setFillColor(...band); doc.roundedRect(x, yy, cw, 7, 2, 2, "F"); doc.rect(x, yy+4, cw, 3, "F");
-      font("bold",9, o.c.tipo==="gas" ? [255,255,255] : DARK);
+      font("bold",9,[255,255,255]);
       doc.text((o.c.tipo==="gas" ? "GAS · " : "LUCE · ") + o.c.name, x+4, yy+4.9);
       let cy = yy + 7 + 4.6;
       o.lines.forEach(r=>{
@@ -1062,7 +1074,7 @@ function renderQuotePdf(m){
   sectionTitle("Come abbiamo calcolato");
   {
     const drawDet = (d, x, w, yy)=>{
-      font("bold",8.4,BRAND_D); doc.text(d.title, x, yy); yy += 4.4;
+      font("bold",8.4, /^Gas/.test(d.title) ? GASC : /^Luce/.test(d.title) ? LUCEC : BRAND_D); doc.text(d.title, x, yy); yy += 4.4;
       d.rows.forEach(r=>{
         const ind = r.indent ? 3 : 0;
         font(r.bold?"bold":"normal", 8.1, r.bold?DARK:TEXT);
@@ -2138,8 +2150,8 @@ function buildFlatCardHTML(data, tierIdxToShow){
   }
 
   return `
-    <div class="flatNavLabel">${label}</div>
-    <div class="offerResult ${bgClass}">
+    <div class="flatNavLabel luce">${label}</div>
+    <div class="offerResult svc-luce ${bgClass}">
       <h3 class="resultTitle">💡 Offerta Fastweb Luce FLAT ${TIER_NAMES[opt.tierIdx]}</h3>
       <p class="periodoRef">Periodo di riferimento: ${data.periodoTxt}</p>
 
@@ -2270,7 +2282,7 @@ function mountFlatNavigator(data){
   };
 
   const wrap = document.createElement("div");
-  wrap.className = "flatNavWrap";
+  wrap.className = "flatNavWrap svc-luce";
   wrap.innerHTML = `
     <div class="flatNavTop">
       <button id="flatPrevBtn" class="flatNavBtn" type="button" aria-label="Fascia precedente">←</button>
@@ -2374,6 +2386,7 @@ function analyzeBolletta(skipWarning){
   const risultato = document.getElementById("risultato");
   risultato.innerHTML = "";
   currentFlatAnalysis = null;
+  if(!isUpsellOnly) risultato.insertAdjacentHTML("beforeend", `<div class="svcHead luce"><span class="ic">💡</span> Offerte Luce</div>`);
 
   if(needsFlat && !isUpsellOnly){
     const optionsAll = [0,1,2,3,4]
@@ -2401,7 +2414,7 @@ function analyzeBolletta(skipWarning){
   if(!isBiz && !isUpsellOnly){
   const fixCard = document.createElement("div");
   fixCard.innerHTML = `
-    <div class="offerResult ${diffFIX>=0 ? "green-bg" : "red-bg"}">
+    <div class="offerResult svc-luce ${diffFIX>=0 ? "green-bg" : "red-bg"}">
       <h3 class="resultTitle">💡 Offerta Fastweb Luce Fix</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
       <div class="sectionTitle">Analisi periodo</div>
@@ -2426,7 +2439,7 @@ function analyzeBolletta(skipWarning){
 
   const flexCard = document.createElement("div");
   flexCard.innerHTML = `
-    <div class="offerResult ${diffFLEX>=0 ? "green-bg" : "red-bg"}">
+    <div class="offerResult svc-luce ${diffFLEX>=0 ? "green-bg" : "red-bg"}">
       <h3 class="resultTitle">💡 Offerta Fastweb Luce Flex</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
       <div class="sectionTitle">Analisi periodo</div>
@@ -2453,7 +2466,7 @@ function analyzeBolletta(skipWarning){
   if(isBiz && !isUpsellOnly){
     const bizFixCard = document.createElement("div");
     bizFixCard.innerHTML = `
-      <div class="offerResult ${diffBizFIX>=0 ? 'green-bg' : 'red-bg'}">
+      <div class="offerResult svc-luce ${diffBizFIX>=0 ? 'green-bg' : 'red-bg'}">
         <h3 class="resultTitle">💡 Offerta Fastweb Luce Business Fix</h3>
         <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
         <div class="sectionTitle">Analisi periodo</div>
@@ -2477,7 +2490,7 @@ function analyzeBolletta(skipWarning){
 
     const bizFlexCard = document.createElement("div");
     bizFlexCard.innerHTML = `
-      <div class="offerResult ${diffBizFLEX>=0 ? 'green-bg' : 'red-bg'}">
+      <div class="offerResult svc-luce ${diffBizFLEX>=0 ? 'green-bg' : 'red-bg'}">
         <h3 class="resultTitle">💡 Offerta Fastweb Luce Business Flex</h3>
         <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
         <div class="sectionTitle">Analisi periodo</div>
@@ -2505,6 +2518,7 @@ function analyzeBolletta(skipWarning){
   _gasComps = {};
   currentGasFlatAnalysis = null;
   if(gasState.active){
+    risultato.insertAdjacentHTML("beforeend", `<div class="svcHead gas"><span class="ic">🔥</span> Offerte Gas${gasState.mode==="upsell"?" — upsell":" — DUAL con la luce"}</div>`);
     if(_psvInfo.missing.length){
       const warn = document.createElement("div");
       warn.className = "upsellWarn";
@@ -3303,7 +3317,7 @@ function gasActionsHTML(gasKind){
 function renderGasCard(g, ctx){
   const card = document.createElement("div");
   card.innerHTML = `
-    <div class="offerResult ${g.diffGas>=0 ? "green-bg" : "red-bg"}">
+    <div class="offerResult svc-gas ${g.diffGas>=0 ? "green-bg" : "red-bg"}">
       <h3 class="resultTitle">🔥 Offerta ${g.offerName}${gasState.mode==="upsell"?" — UPSELL":" (DUAL)"}</h3>
       <p class="periodoRef">Periodo di riferimento gas: ${ctx.periodoTxt}</p>
       ${ctx.periodiDiversi ? `<p class="periodoRef" style="color:#a0660b; font-weight:700; font-size:14px">⚠ Periodo gas diverso dalla luce (luce: ${ctx.periodoLuceTxt})</p>` : ""}
@@ -3362,8 +3376,8 @@ function buildGasFlatCardHTML(data, t){
   }
   const modeLabel = gasState.mode==="upsell" ? " — UPSELL" : " (DUAL)";
   return `
-    <div class="flatNavLabel">${isRecommended ? "🔥 GAS FLAT · FASCIA CONSIGLIATA" : "🔥 GAS FLAT · ANALISI FASCIA "+tier}</div>
-    <div class="offerResult ${bgClass}">
+    <div class="flatNavLabel gas">${isRecommended ? "🔥 GAS FLAT · FASCIA CONSIGLIATA" : "🔥 GAS FLAT · ANALISI FASCIA "+tier}</div>
+    <div class="offerResult svc-gas ${bgClass}">
       <h3 class="resultTitle">🔥 Offerta Fastweb Gas FLAT ${tier}${modeLabel}</h3>
       <p class="periodoRef">Periodo di riferimento gas: ${data.periodoGasTxt}</p>
       ${data.periodiDiversi ? `<p class="periodoRef" style="color:#a0660b; font-weight:700; font-size:14px">⚠ Periodo gas diverso dalla luce (luce: ${data.periodoLuceTxt})</p>` : ""}
@@ -3436,7 +3450,7 @@ function renderCurrentGasFlat(){
 function mountGasFlatNavigator(data, parent){
   currentGasFlatAnalysis = { ...data, currentTierIdx: data.bestTierIdx };
   const wrap = document.createElement("div");
-  wrap.className = "flatNavWrap";
+  wrap.className = "flatNavWrap svc-gas";
   wrap.innerHTML = `
     <div class="flatNavTop">
       <button id="gasFlatPrevBtn" class="flatNavBtn" type="button" aria-label="Fascia gas precedente">←</button>
