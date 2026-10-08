@@ -117,6 +117,12 @@
   .pill{display:inline-block; padding:8px 16px; border-radius:999px; background:#9b91d6; color:#fff; font-weight:900; letter-spacing:.5px}
   .oldPrice{color:#6b5fa8; text-decoration:line-through; font-weight:800; font-size:24px; margin:8px 0 2px; display:block}
   .bigPrice{font-size:56px; font-weight:900; margin:2px 0 0}
+  .seasonPrices{display:flex; flex-direction:column; gap:8px; margin:10px 0 0}
+  .seasonPrices > div{display:flex; flex-direction:column; line-height:1.1}
+  .seasonPrices .sl{font-size:12px; font-weight:900; letter-spacing:.2px; opacity:.85}
+  .seasonPrices .sp{font-size:32px; font-weight:900}
+  .oldPrice.sm{font-size:15px; margin:2px 0 0}
+  .gasFlatInfo{margin-top:10px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.55); border:1px dashed #d6a800; font-size:13px; font-weight:700; line-height:1.4}
   .subtitle{margin:0 0 12px; font-weight:900}
   .desc{margin:12px 0 0; line-height:1.35; font-weight:800}
   .violetSeparator{height:10px; border-radius:10px; background:rgba(124,112,180,.25); margin:10px 0 6px}
@@ -424,6 +430,24 @@
             <label for="gasQuotaFissa">Quota fissa materia gas (€)</label>
             <input id="gasQuotaFissa" type="number" min="0" step="0.01" />
           </div>
+
+          <!-- Dati per Fastweb Gas FLAT (facoltativi, solo uso domestico) -->
+          <div id="gasFlatExtra" style="display:none; padding:10px 12px; border:1.5px dashed #d6a800; border-radius:12px; background:#fffbea; margin-top:12px">
+            <div style="font-weight:900; font-size:14px; margin-bottom:2px">🔥 Dati per Fastweb Gas FLAT</div>
+            <div class="hint" style="margin:0 0 6px">Facoltativi, solo uso domestico. Compila consumo annuo e totale bolletta per vedere anche l'analisi Gas FLAT.</div>
+            <div class="gasField" style="margin:6px 0">
+              <label for="gasAnnuoSmc" style="font-size:13px">Consumo annuo gas (Smc)</label>
+              <input id="gasAnnuoSmc" type="number" min="0" step="1" placeholder="Es. 650" />
+            </div>
+            <div class="gasField" style="margin:6px 0">
+              <label for="gasTotBolletta" style="font-size:13px">Totale bolletta gas del periodo (€)</label>
+              <input id="gasTotBolletta" type="number" min="0" step="0.01" placeholder="Importo totale da pagare" />
+            </div>
+            <div class="gasField" style="margin:6px 0 0">
+              <label for="gasSpesaAnnua" style="font-size:13px">Spesa annua gas sostenuta (€) <span class="hint">facoltativo</span></label>
+              <input id="gasSpesaAnnua" type="number" min="0" step="0.01" placeholder="Per il confronto annuale" />
+            </div>
+          </div>
           <div class="modalActions">
             <button type="button" class="btn secondary" id="gasModalCancel">Annulla</button>
             <button type="button" class="btn" id="gasModalConfirm">Conferma</button>
@@ -592,6 +616,16 @@ const NEW_OFFERS_START = new Date(2026, 7, 28); // 28 agosto 2026 (month 0-based
 function isNewOffersActive(){ return new Date() >= NEW_OFFERS_START; }
 const SEP26_START = new Date(2026, 8, 26); // 26 settembre 2026 (month 0-based: 8=settembre)
 function isSep26Active(){ return new Date() >= SEP26_START; }
+/* ------------------------------------------------------------
+   NOVITÀ OFFERTE dall'8 OTTOBRE 2026 (validità 8-25 ottobre)
+   - Nuove FASTWEB GAS FLAT (domestico C2-C3): 5 fasce a canone mensile, fisso o stagionale
+   - Gas Flex domestico: sconto convergenza 10€ -> 5€ (prezzo PSV + 0,12 confermato)
+   - Nuova FASTWEB GAS BUSINESS FIX: 0,80 €/Smc, commercializzazione 20€ (10€ in convergenza), 24 mesi
+   - Gas Business Flex confermato
+   - Scadenze: tutte al 25 ottobre (luce invariata, prorogata)
+   ------------------------------------------------------------ */
+const OCT08_START = new Date(2026, 9, 8); // 8 ottobre 2026 (month 0-based: 9=ottobre)
+function isOct08Active(){ return new Date() >= OCT08_START; }
 
 const POWER_STEP_PRICE=5;
 // Corrispettivi extra soglia / restituzione per fascia (€/kWh) — aggiornati 09/2026
@@ -653,7 +687,15 @@ const OFFER_EXPIRY_SEP26 = {
   gasDom:       "7 ottobre",
   gasBiz:       "7 ottobre"
 };
+// Dall'8/10/2026 tutte le offerte (luce e gas, incluse le nuove gas) scadono il 25 ottobre
+const OFFER_EXPIRY_OCT08 = {
+  flat:"25 ottobre", fix:"25 ottobre", flex:"25 ottobre",
+  businessFix:"25 ottobre", businessFlex:"25 ottobre",
+  gasDom:"25 ottobre", gasBiz:"25 ottobre",
+  gasFlat:"25 ottobre", gasBizFix:"25 ottobre"
+};
 function getExpiry(offerKey){
+  if(isOct08Active())      return OFFER_EXPIRY_OCT08[offerKey] || OFFER_EXPIRY_LEGACY;
   if(isSep26Active())      return OFFER_EXPIRY_SEP26[offerKey] || OFFER_EXPIRY_LEGACY;
   if(!isNewOffersActive()) return OFFER_EXPIRY_LEGACY;
   return OFFER_EXPIRY_NEW[offerKey] || OFFER_EXPIRY_LEGACY;
@@ -677,6 +719,7 @@ const GAS_BIZ_SPREAD = 0.13; // confermato
 const GAS_DOM_CANONE_LISTINO = 15;
 // Gas domestico: canone 4€ -> 0€ (28/08, commercializzazione zero) -> 5€ (26/09, sconto 10€)
 function getGasDomCanoneConv(){
+  if(isOct08Active())      return GAS_DOM_CANONE_LISTINO - 5;  // canone 10 (sconto 5€ dall'8/10)
   if(isSep26Active())      return GAS_DOM_CANONE_LISTINO - 10; // canone 5
   if(isNewOffersActive())  return 0;
   return 4;
@@ -689,12 +732,65 @@ function getGasBizCanoneConv(){
   return 10;
 }
 
-let gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[] };
+// ===== GAS BUSINESS FIX (dall'8/10/2026) =====
+const GAS_BIZ_FIX_PRICE = 0.80;          // €/Smc componente gas
+const GAS_BIZ_FIX_CANONE_LISTINO = 20;   // senza convergenza
+const GAS_BIZ_FIX_CANONE_CONV = 10;      // in convergenza con Luce Fastweb
+function isGasBizFixAvailable(){ return isOct08Active(); }
+
+// ===== GAS FLAT (domestico C2-C3, dall'8/10/2026) =====
+// Fonte: "Doc. Approfondimento Offerte Fastweb Gas Flat_8 Ottobre 26" (valori di LISTINO).
+// Il comunicato commerciale riporta i canoni già scontati in convergenza (listino - 10€).
+const GAS_FLAT_THRESHOLDS = [150, 300, 600, 900, 1200];   // Smc/anno inclusi
+const GAS_FLAT_LISTINO    = [36, 55, 92, 128, 163];       // canone mensile fisso
+const GAS_FLAT_SUMMER     = [24, 37, 62, 86, 109];        // canone stagionale aprile-settembre
+const GAS_FLAT_WINTER     = [48, 73, 122, 170, 217];      // canone stagionale ottobre-marzo
+const GAS_FLAT_RATE       = [1.60, 1.50, 1.46, 1.42, 1.38]; // extra soglia = restituzione (€/Smc)
+const GAS_FLAT_LOW_USE_RATIO = 0.70;   // sotto il 70% della soglia...
+const GAS_FLAT_LOW_USE_BONUS = 0.02;   // ...+0,02 €/Smc di restituzione per ogni Smc non consumato
+const GAS_FLAT_MAX_SMC    = 1500;      // oltre: il fornitore può interrompere il contratto
+const GAS_FLAT_CONV_DISCOUNT = 10;     // sconto convergenza €/mese
+const GAS_FLAT_VALIDITA   = "24 mesi";
+const SUMMER_MONTHS = ["apr","mag","giu","lug","ago","set"];
+function isGasFlatAvailable(){ return isOct08Active(); }
+function gasFlatMonthly(t, isClient, mode){
+  const base = mode==="summer" ? GAS_FLAT_SUMMER : mode==="winter" ? GAS_FLAT_WINTER : GAS_FLAT_LISTINO;
+  return base[t] - (isClient ? GAS_FLAT_CONV_DISCOUNT : 0);
+}
+function isSummerMonth(meseLabel){ return SUMMER_MONTHS.includes(String(meseLabel).slice(0,3).toLowerCase()); }
+function eur2(n){ return (n||0).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function computeGasFlatAnnual(consumo, t, isClient){
+  const monthly    = gasFlatMonthly(t, isClient, "fixed");
+  const baseAnnual = monthly * 12;
+  const threshold  = GAS_FLAT_THRESHOLDS[t];
+  const rate       = GAS_FLAT_RATE[t];
+  const billable   = Math.min(consumo, GAS_FLAT_MAX_SMC);      // l'extra si paga fino a 1.500 Smc
+  const extraSmc   = Math.max(0, billable - threshold);
+  const extraAnnual= extraSmc * rate;
+  const marginSmc  = Math.max(0, threshold - consumo);
+  const lowUse     = marginSmc > 0 && consumo < threshold * GAS_FLAT_LOW_USE_RATIO;
+  const refundRate = rate + (lowUse ? GAS_FLAT_LOW_USE_BONUS : 0);
+  const refund     = marginSmc * refundRate;
+  return { tierIdx:t, monthly, baseAnnual, threshold, rate, extraSmc, extraAnnual,
+           marginSmc, lowUse, refundRate, refund, totalAnnual: baseAnnual + extraAnnual - refund };
+}
+let currentGasFlatAnalysis = null;
+let _gasComps = {};              // calcoli gas a consumo dell'ultima analisi: { flex, bizFix }
+let _buildDualPayload = null;     // (luceKind, gasKind) => testo preventivo DUAL
+let _buildUpsellPayload = null;   // (gasKind) => testo preventivo UPSELL
+let _dualGasKind = "flex";        // gas della card da cui è partito il preventivo
+let _upsellGasKind = "flex";      // gas della card UPSELL da cui è partito il preventivo
+let _buildPdfModel = null;        // (kind, gasKind) => dati del preventivo PDF
+
+let gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[], annuoSmc:0, totBolletta:0, spesaAnnua:0 };
 let wDUAL_FIX = "", wDUAL_FLEX = "", wDUAL_FLAT = "", wUPSELL = "";
 let _dualIsBiz = false;
 let _dualHasFlat = false;
 let _rebuildDualFlat = null;
 
+// Per il PDF: separatore delle migliaia anche a 4 cifre (1.622,20 invece di 1622,20)
+function moneyG(n){ return (n||0).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2, useGrouping:"always"}); }
+function numG(n){ return (n||0).toLocaleString("it-IT",{maximumFractionDigits:2, useGrouping:"always"}); }
 function money(n){
   return (n||0).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -835,7 +931,193 @@ function sendWhatsApp(kind){
 /* =========================
    PDF dinamico
    ========================= */
+/* =========================
+   PDF PREVENTIVO (dai dati del calcolo)
+   Ordine: cliente -> offerta -> IL TUO RISPARMIO -> CONDIZIONI ECONOMICHE -> COME ABBIAMO CALCOLATO -> note
+   ========================= */
+function renderQuotePdf(m){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:"mm", format:"a4" });
+  const BRAND_D=[70,60,130], DARK=[33,28,70], TEXT=[60,60,75], MUTED=[120,120,140],
+        BG_SOFT=[246,244,252], ACCENT=[247,189,43], GASC=[234,108,40],
+        OK=[30,135,70], KO=[195,55,70], OK_BG=[226,245,232], KO_BG=[253,232,234], RULE=[225,220,240];
+  const PAGE_W=210, PAGE_H=297, L=14, W=PAGE_W-2*L, GAP=4;
+  const E = n => "€ " + moneyG(Math.abs(n));
+  let y = 0;
+  const today = (()=>{ const d=new Date(); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; })();
+  const font = (style,size,color)=>{ doc.setFont("helvetica",style); doc.setFontSize(size); doc.setTextColor(...color); };
+  const textR = (t,xr,yy)=> doc.text(t, xr - doc.getTextWidth(t), yy);
+
+  // ---- intestazione ----
+  doc.setFillColor(...BRAND_D); doc.rect(0,0,PAGE_W,22,"F");
+  doc.setFillColor(...ACCENT); doc.rect(0,22,PAGE_W,1.5,"F");
+  font("bold",15,[255,255,255]); doc.text("FASTWEB",L,12);
+  const wF = doc.getTextWidth("FASTWEB"); doc.setTextColor(...ACCENT); doc.text(" ENERGIA",L+wF,12);
+  font("normal",8.5,[255,255,255]); doc.text("Preventivo personalizzato",L,17.5); textR("Emesso il "+today, PAGE_W-L, 17.5);
+  y = 29;
+
+  const sectionTitle = (label)=>{
+    y += 5;
+    font("bold",9,BRAND_D); doc.text(label.toUpperCase(), L, y);
+    doc.setDrawColor(...ACCENT); doc.setLineWidth(0.7); doc.line(L, y+1.3, L+18, y+1.3);
+    y += 5;
+  };
+
+  // ---- cliente ----
+  {
+    const rows = m.cliente, rowH = 4.6, h = rows.length*rowH + 3.6;
+    doc.setFillColor(...BG_SOFT); doc.roundedRect(L, y, W, h, 1.8, 1.8, "F");
+    let cy = y + 4.8;
+    rows.forEach(([k,v])=>{ font("normal",8.6,MUTED); doc.text(k, L+4, cy); font("bold",8.6,DARK); textR(v, L+W-4, cy); cy += rowH; });
+    y += h + 4;
+  }
+
+  // ---- offerta ----
+  {
+    const H = 14;
+    doc.setFillColor(...BRAND_D); doc.roundedRect(L, y, W, H, 2.4, 2.4, "F");
+    doc.setFillColor(...ACCENT); doc.roundedRect(L, y, 3, H, 1.2, 1.2, "F");
+    font("bold",12.5,[255,255,255]); doc.text(m.title, L+8, y+6.4);
+    if(m.subtitle){ font("normal",8.5,ACCENT); doc.text(m.subtitle, L+8, y+11.2); }
+    y += H + 2;
+  }
+
+  // ---- IL TUO RISPARMIO ----
+  sectionTitle(m.tiles.length===1 && m.tiles[0].value<0 ? "Confronto con la spesa attuale" : "Il tuo risparmio");
+  {
+    const n = m.tiles.length, tw = (W - GAP*(n-1))/n, H = 19;
+    m.tiles.forEach((t,i)=>{
+      const x = L + i*(tw+GAP), ok = t.value >= 0;
+      doc.setFillColor(...(ok?OK_BG:KO_BG)); doc.roundedRect(x, y, tw, H, 2.4, 2.4, "F");
+      doc.setFillColor(...(ok?OK:KO)); doc.roundedRect(x, y, 2.4, H, 1, 1, "F");
+      const label = ok ? t.label : t.label.replace(/^Risparmio/,"Maggior costo");
+      if(n===1){
+        // un riquadro: etichetta e dettaglio a sinistra, cifra grande a destra
+        font("bold",9.5, ok?OK:KO); doc.text(label.toUpperCase(), x+6, y+7);
+        if(t.sub){ font("normal",7.8,TEXT); doc.text(doc.splitTextToSize(t.sub, tw-75)[0], x+6, y+13); }
+        font("bold",22,DARK); textR((ok?"":"+ ")+E(t.value), x+tw-6, y+13);
+      } else {
+        // due riquadri affiancati: etichetta, poi cifra su riga propria, poi dettaglio
+        font("bold",8.4, ok?OK:KO); doc.text(doc.splitTextToSize(label.toUpperCase(), tw-10)[0], x+6, y+5.8);
+        if(t.pairs){
+          // due cifre con la stessa evidenza: nel periodo | annuo stimato
+          const pw = (tw-10)/2;
+          t.pairs.forEach((p,j)=>{
+            const px = x+6 + j*pw, pok = p.v >= 0;
+            font("normal",7.4,TEXT); doc.text(pok ? p.lbl : p.lbl+" (in più)", px, y+10.6);
+            font("bold",14, pok?DARK:KO); doc.text((pok?"":"+ ")+E(p.v), px, y+16.6);
+          });
+        } else {
+          font("bold",17,DARK); textR((ok?"":"+ ")+E(t.value), x+tw-5, y+12.8);
+          if(t.sub){ font("normal",7.6,TEXT); doc.text(doc.splitTextToSize(t.sub, tw-10)[0], x+6, y+16.8); }
+        }
+      }
+    });
+    y += H + 2;
+    if(m.footnote){ font("italic",7.8,TEXT); doc.splitTextToSize(m.footnote, W).forEach(l=>{ doc.text(l, L, y+2); y += 3.6; }); y += 1; }
+  }
+
+  // ---- CONDIZIONI ECONOMICHE ----
+  sectionTitle("Condizioni economiche");
+  {
+    const cols = (m.twoCols && m.conds.length===2) ? 2 : 1;
+    const cw = (W - GAP*(cols-1))/cols;
+    const rowLines = (c)=>{
+      font("normal",8,MUTED);
+      return c.rows.map(([k,v])=>{
+        const kw = doc.getTextWidth(k);
+        font("bold",8.2,DARK);
+        const vl = doc.splitTextToSize(v, Math.max(30, cw - 8 - kw - 4));
+        font("normal",8,MUTED);
+        return { k, vl, h: 4.3*vl.length };
+      });
+    };
+    const measured = m.conds.map(c=>({ c, lines: rowLines(c) }));
+    const cardH = Math.max(...measured.map(o=> 7 + 2 + o.lines.reduce((a,r)=>a+r.h,0) + 1.5));
+    measured.forEach((o,i)=>{
+      const x = L + (cols===2 ? i*(cw+GAP) : 0);
+      const yy = cols===2 ? y : y + (i ? 0 : 0);
+      doc.setFillColor(...BG_SOFT); doc.roundedRect(x, yy, cw, cardH, 2, 2, "F");
+      const band = o.c.tipo==="gas" ? GASC : ACCENT;
+      doc.setFillColor(...band); doc.roundedRect(x, yy, cw, 7, 2, 2, "F"); doc.rect(x, yy+4, cw, 3, "F");
+      font("bold",9, o.c.tipo==="gas" ? [255,255,255] : DARK);
+      doc.text((o.c.tipo==="gas" ? "GAS · " : "LUCE · ") + o.c.name, x+4, yy+4.9);
+      let cy = yy + 7 + 4.6;
+      o.lines.forEach(r=>{
+        font("normal",8,MUTED); doc.text(r.k, x+4, cy);
+        font("bold",8.2,DARK); r.vl.forEach((l,j)=> textR(l, x+cw-4, cy + j*4.3));
+        cy += r.h;
+      });
+      if(cols===1 && i < measured.length-1) y += cardH + 3;
+    });
+    y += cardH + 2;
+    if(m.bonus){
+      const H=8; doc.setFillColor(...ACCENT); doc.roundedRect(L, y, W, H, 2, 2, "F");
+      font("bold",8.5,DARK); doc.text("WELCOME BONUS LUCE: 15€ di sconto per i nuovi clienti, in 3 rate da 5€ nelle prime bollette utili", L+4, y+5.2);
+      y += H + 2;
+    }
+  }
+
+  // ---- COME ABBIAMO CALCOLATO ----
+  sectionTitle("Come abbiamo calcolato");
+  {
+    const drawDet = (d, x, w, yy)=>{
+      font("bold",8.4,BRAND_D); doc.text(d.title, x, yy); yy += 4.4;
+      d.rows.forEach(r=>{
+        const ind = r.indent ? 3 : 0;
+        font(r.bold?"bold":"normal", 8.1, r.bold?DARK:TEXT);
+        const vw = doc.getTextWidth(r.v);
+        const kl = doc.splitTextToSize(r.k, w - ind - vw - 3);
+        kl.forEach((l,j)=> doc.text(l, x+ind, yy + j*3.8));
+        font(r.bold?"bold":"normal", 8.1, DARK); textR(r.v, x+w, yy);
+        yy += 4.1 + (kl.length-1)*3.8;
+      });
+      if(d.esito!=null){
+        const ok = d.esito >= 0;
+        doc.setDrawColor(...RULE); doc.setLineWidth(0.3); doc.line(x, yy-2.6, x+w, yy-2.6);
+        font("bold",8.6, ok?OK:KO);
+        doc.text((ok?"Risparmio ":"Maggior costo ") + d.esitoLabel, x, yy+0.6);
+        textR((ok?"":"+ ")+E(d.esito), x+w, yy+0.6);
+        yy += 5;
+      } else if(d.esito===null && /annua/.test(d.title)){
+        font("italic",7.6,MUTED); doc.text("Spesa annua non dichiarata: risparmio annuo non calcolabile.", x, yy+0.4); yy += 4.6;
+      }
+      return yy + 2.5;
+    };
+    if(m.twoCols){
+      const cw = (W - GAP)/2;
+      const luce = m.dets.filter(d=>/^Luce/.test(d.title)), gas = m.dets.filter(d=>/^Gas/.test(d.title));
+      let yl = y, yg = y;
+      luce.forEach(d=>{ yl = drawDet(d, L, cw, yl); });
+      gas.forEach(d=>{ yg = drawDet(d, L+cw+GAP, cw, yg); });
+      doc.setDrawColor(...RULE); doc.setLineWidth(0.2); doc.line(L+cw+GAP/2, y-3, L+cw+GAP/2, Math.max(yl,yg)-3);
+      y = Math.max(yl, yg);
+    } else {
+      m.dets.forEach(d=>{ y = drawDet(d, L, W, y); });
+    }
+  }
+
+  // ---- note ----
+  sectionTitle("Note");
+  font("normal",7.8,TEXT);
+  doc.splitTextToSize(m.note + " Preventivo non vincolante, valori stimati. Per ulteriori dettagli, contattaci!", W).forEach(l=>{ doc.text(l, L, y); y += 3.5; });
+
+  // ---- piè di pagina ----
+  doc.setDrawColor(...RULE); doc.setLineWidth(0.2); doc.line(L, PAGE_H-10, PAGE_W-L, PAGE_H-10);
+  font("normal",7.5,MUTED);
+  doc.text("Preventivo non vincolante - i valori sono stime indicative.", L, PAGE_H-5.5);
+  textR("FASTWEB ENERGIA", PAGE_W-L, PAGE_H-5.5);
+
+  doc.save(`Preventivo_${m.filename}.pdf`);
+}
+
 function printOfferPdf(kind){
+  // Nuovo PDF costruito dai dati del calcolo (vecchio metodo sotto, usato solo come riserva)
+  if(typeof _buildPdfModel === "function"){
+    const gkArg = kind==="upsell" ? _upsellGasKind : _dualGasKind;
+    const model = _buildPdfModel(kind, gkArg);
+    if(model){ renderQuotePdf(model); return; }
+  }
   let txt = "";
   if(kind === "canone"){
     txt = getCurrentFlatOfferText().trim();
@@ -1050,10 +1332,18 @@ function printOfferPdf(kind){
   else if(kind==="flex"){ displayTitle="FASTWEB LUCE FLEX"; heroSub="Prezzo indicizzato PUN - uso domestico"; }
   else if(kind==="businessFix"){ displayTitle="FASTWEB LUCE BUSINESS FIX"; heroSub="Prezzo fisso per Partita IVA - validità ${getBizFixValidita()}"; }
   else if(kind==="businessFlex"){ displayTitle="FASTWEB LUCE BUSINESS FLEX"; heroSub="Prezzo indicizzato PUN per Partita IVA - validità ${getBizFlexValidita()}"; }
-  else if(kind==="dualFix"){ displayTitle="DUAL: LUCE FIX + GAS FLEX"; heroSub="Preventivo combinato luce a prezzo fisso + gas indicizzato PSV"; }
-  else if(kind==="dualFlex"){ displayTitle="DUAL: LUCE FLEX + GAS FLEX"; heroSub="Preventivo combinato luce + gas - prezzi indicizzati PUN/PSV"; }
-  else if(kind==="dualFlat"){ displayTitle="DUAL: LUCE FLAT + GAS FLEX"; heroSub="Preventivo combinato luce flat (canone fisso) + gas indicizzato PSV"; }
-  else if(kind==="upsell"){ displayTitle="UPSELL: FASTWEB GAS FLEX"; heroSub="Cliente già Fastweb Luce - solo gas in upsell"; }
+  else if(kind==="dualFix"||kind==="dualFlex"||kind==="dualFlat"||kind==="upsell"){
+    const gIsFlat   = /OFFERTA\s+FASTWEB GAS FLAT/i.test(txt);
+    const gIsBizFix = /OFFERTA\s+FASTWEB GAS BUSINESS FIX/i.test(txt);
+    const gLbl  = gIsFlat ? "GAS FLAT" : gIsBizFix ? "GAS BUSINESS FIX" : "GAS FLEX";
+    const gDesc = gIsFlat ? "gas a canone fisso (FLAT)" : gIsBizFix ? "gas a prezzo fisso" : "gas indicizzato PSV";
+    if(kind==="upsell"){ displayTitle="UPSELL: FASTWEB "+gLbl; heroSub="Cliente già Fastweb Luce - solo gas in upsell ("+gDesc+")"; }
+    else {
+      const lLbl  = kind==="dualFix" ? "LUCE FIX" : kind==="dualFlex" ? "LUCE FLEX" : "LUCE FLAT";
+      const lDesc = kind==="dualFix" ? "luce a prezzo fisso" : kind==="dualFlex" ? "luce indicizzata PUN" : "luce flat (canone fisso)";
+      displayTitle = "DUAL: "+lLbl+" + "+gLbl; heroSub = "Preventivo combinato "+lDesc+" + "+gDesc;
+    }
+  }
   else { displayTitle = (titoloOfferta||"OFFERTA FASTWEB ENERGIA").toUpperCase(); heroSub = "Energia Casa"; }
 
   sectionTitle("Offerta proposta");
@@ -1122,14 +1412,18 @@ function printOfferPdf(kind){
     // Isolo il sotto-testo del solo blocco GAS per evitare che le regex generiche
     // (es. "di cui quota fissa") peschino i valori della LUCE che lo precede nel testo DUAL.
     const _gasStartIdx = (()=>{
-      const m = txt.match(/OFFERTA\s+FASTWEB GAS FLEX(?:\s+BUSINESS)?/i);
+      const m = txt.match(/OFFERTA\s+FASTWEB GAS (?:FLEX|FLAT|BUSINESS)/i);
       return m ? m.index : -1;
     })();
     const _gasOnlyTxt = _gasStartIdx >= 0 ? txt.slice(_gasStartIdx) : txt;
     const grabGas = (re)=>{ const m=_gasOnlyTxt.match(re); return m?m[1].trim():""; };
 
     // -- Blocco GAS --
-    const gName = grabGas(/OFFERTA\s+(FASTWEB GAS FLEX(?:\s+BUSINESS)?)/i) || "FASTWEB GAS FLEX";
+    const gName = grabGas(/OFFERTA\s+(FASTWEB GAS (?:FLEX(?:\s+BUSINESS)?|BUSINESS FIX))/i) || "FASTWEB GAS FLEX";
+    const gIsFlatBlock = /^OFFERTA\s+FASTWEB GAS FLAT/i.test(_gasOnlyTxt);
+    // la LUCE si legge solo dal testo che precede il blocco gas
+    const _luceOnlyTxt = _gasStartIdx >= 0 ? txt.slice(0, _gasStartIdx) : txt;
+    const grabLuce = (re)=>{ const m=_luceOnlyTxt.match(re); return m?m[1].trim():""; };
     const gSmc          = grabGas(/Smc fatturati:\s*([^\n]+)/i);
     const gQc           = grabGas(/Quota consumi materia gas:\s*€\s*([0-9\.\,]+)/i);
     const gQf           = grabGas(/Quota fissa materia gas:\s*€\s*([0-9\.\,]+)/i);
@@ -1150,26 +1444,26 @@ function printOfferPdf(kind){
       const lName = isBizDual
         ? (isFix ? "Fastweb Luce Business Fix" : "Fastweb Luce Business Flex")
         : (isFix ? "Fastweb Luce Fix" : "Fastweb Luce Flex");
-      const lQc   = grab(/Quota consumi materia energia:\s*€\s*([0-9\.\,]+)/i);
-      const lQf   = grab(/Quota fissa materia energia:\s*€\s*([0-9\.\,]+)/i);
-      const lSp   = grab(/Costo energia inserito:\s*€\s*([0-9\.\,]+)/i);
-      const lTot  = grab(new RegExp("Costo con\\s+"+lName.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+":\\s*€\\s*([0-9\\.\\,]+)","i"));
-      const lRisp = grab(/Risparmio luce:\s*€\s*([0-9\.\,]+)/i);
-      const lMagg = grab(/L[’']offerta luce in questo caso è superiore di\s*€\s*([0-9\.\,]+)/i);
+      const lQc   = grabLuce(/Quota consumi materia energia:\s*€\s*([0-9\.\,]+)/i);
+      const lQf   = grabLuce(/Quota fissa materia energia:\s*€\s*([0-9\.\,]+)/i);
+      const lSp   = grabLuce(/Costo energia inserito:\s*€\s*([0-9\.\,]+)/i);
+      const lTot  = grabLuce(new RegExp("Costo con\\s+"+lName.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")+":\\s*€\\s*([0-9\\.\\,]+)","i"));
+      const lRisp = grabLuce(/Risparmio luce:\s*€\s*([0-9\.\,]+)/i);
+      const lMagg = grabLuce(/L[’']offerta luce in questo caso è superiore di\s*€\s*([0-9\.\,]+)/i);
       luceData = { lName, lQc, lQf, lSp, lTot, lRisp, lMagg };
     }
     if(isDualFlat){
-      const tier      = grab(/FASCIA\s+([A-Z]+)/i);
-      const fMonthly  = grab(/Costo mensile fascia:\s*€\s*([0-9\.\,]+)/i);
-      const fSoglia   = grab(/Soglia fascia:\s*fino a\s*([0-9\.\,]+)\s*kWh\/anno/i);
-      const fSpesa    = grab(/Spesa bolletta attuale \(periodo\):\s*€\s*([0-9\.\,]+)/i);
-      const fPeriodo  = grab(/Costo con Fastweb Luce Flat\s+[A-Z]+\s*\([^\)]+\):\s*€\s*([0-9\.\,]+)/i);
-      const fRisp     = grab(/Risparmio luce periodo:\s*€\s*([0-9\.\,]+)/i);
-      const fMagg     = grab(/L[’']offerta luce in questo caso è superiore nel periodo di\s*€\s*([0-9\.\,]+)/i);
-      const fAnnSp    = grab(/Spesa annua luce dichiarata:\s*€\s*([0-9\.\,]+)/i);
-      const fAnnCo    = grab(/Costo annuo Fastweb Luce Flat\s+[A-Z]+:\s*€\s*([0-9\.\,]+)/i);
-      const fAnnRisp  = grab(/RISPARMIO ANNUALE LUCE:\s*€\s*([0-9\.\,]+)/i);
-      const fAnnMagg  = grab(/Maggior costo annuale luce:\s*€\s*([0-9\.\,]+)/i);
+      const tier      = grabLuce(/FASCIA\s+([A-Z]+)/i);
+      const fMonthly  = grabLuce(/Costo mensile fascia:\s*€\s*([0-9\.\,]+)/i);
+      const fSoglia   = grabLuce(/Soglia fascia:\s*fino a\s*([0-9\.\,]+)\s*kWh\/anno/i);
+      const fSpesa    = grabLuce(/Spesa bolletta attuale \(periodo\):\s*€\s*([0-9\.\,]+)/i);
+      const fPeriodo  = grabLuce(/Costo con Fastweb Luce Flat\s+[A-Z]+\s*\([^\)]+\):\s*€\s*([0-9\.\,]+)/i);
+      const fRisp     = grabLuce(/Risparmio luce periodo:\s*€\s*([0-9\.\,]+)/i);
+      const fMagg     = grabLuce(/L[’']offerta luce in questo caso è superiore nel periodo di\s*€\s*([0-9\.\,]+)/i);
+      const fAnnSp    = grabLuce(/Spesa annua luce dichiarata:\s*€\s*([0-9\.\,]+)/i);
+      const fAnnCo    = grabLuce(/Costo annuo Fastweb Luce Flat\s+[A-Z]+:\s*€\s*([0-9\.\,]+)/i);
+      const fAnnRisp  = grabLuce(/RISPARMIO ANNUALE LUCE:\s*€\s*([0-9\.\,]+)/i);
+      const fAnnMagg  = grabLuce(/Maggior costo annuale luce:\s*€\s*([0-9\.\,]+)/i);
       luceFlatData = { tier, fMonthly, fSoglia, fSpesa, fPeriodo, fRisp, fMagg, fAnnSp, fAnnCo, fAnnRisp, fAnnMagg };
     }
 
@@ -1222,6 +1516,45 @@ function printOfferPdf(kind){
       spacer(2);
     }
 
+    // ----- Render GAS FLAT (compatto: deve stare in pagina anche con la luce FLAT) -----
+    if(gIsFlatBlock){
+      const gf = (re)=>grabGas(re);
+      const fTier = gf(/FASCIA\s+([A-Z]+)/i);
+      sectionTitle((kind==="upsell"?"Upsell ":"Confronto ") + "GAS FLAT " + fTier);
+      if(periodoGas) kvRow("Periodo riferimento GAS", periodoGas, {bold:true});
+      const cFisso = gf(/Canone mensile fisso:\s*€\s*([0-9\.\,]+)/i);
+      const stag   = _gasOnlyTxt.match(/estate \(apr-set\) €\s*([0-9\.\,]+) - inverno \(ott-mar\) €\s*([0-9\.\,]+)/i);
+      const conv   = /sconto convergenza/i.test(_gasOnlyTxt);
+      if(cFisso) kvRow("Canone mensile" + (conv ? " (scontato clienti Fastweb)" : ""),
+                       "€ " + cFisso + " fisso" + (stag ? " · stag. € " + stag[1] + " / € " + stag[2] : ""));
+      const fSog  = gf(/Soglia gas:\s*fino a\s*([0-9\.\,]+)\s*Smc/i);
+      const fRate = gf(/Extra soglia \/ restituzione:\s*€\s*([0-9\.\,]+)/i);
+      if(fSog) kvRow("Soglia · extra soglia / restituzione", fSog + " Smc/anno · € " + fRate + "/Smc");
+      const fSp = gf(/Spesa bolletta gas attuale \(periodo\):\s*€\s*([0-9\.\,]+)/i);
+      if(fSp) kvRow("Spesa bolletta gas attuale (periodo)", "€ " + fSp, {bold:true});
+      const fCf = gf(/canone fisso\):\s*€\s*([0-9\.\,]+)/i);
+      if(fCf) kvRow(`Spesa con Fastweb Gas Flat ${fTier} (canone fisso)`, "€ " + fCf, {bold:true});
+      const fCs = gf(/Costo con canone stagionale[^:]*:\s*€\s*([0-9\.\,]+)/i);
+      if(fCs) kvRow("con canone stagionale", "€ " + fCs, {indent:true});
+      spacer(2);
+      const fRp = gf(/Risparmio gas periodo:\s*€\s*([0-9\.\,]+)/i);
+      const fMp = gf(/superiore nel periodo di\s*€\s*([0-9\.\,]+)/i);
+      if(fRp) bigBadge("Risparmio gas (periodo)", "€ "+fRp, true);
+      else if(fMp) bigBadge("Maggior costo gas (periodo)", "€ "+fMp, false);
+
+      const fAc  = gf(/Consumo annuo gas:\s*([0-9\.\,]+)\s*Smc/i);
+      const fAco = gf(/Costo annuo Fastweb Gas Flat\s+[A-Z]+:\s*€\s*([0-9\.\,]+)/i);
+      if(fAco) kvRow(`Costo annuo Gas Flat ${fTier}` + (fAc ? ` (${fAc} Smc/anno)` : ""), "€ " + fAco, {bold:true});
+      const fAs = gf(/Spesa annua gas dichiarata:\s*€\s*([0-9\.\,]+)/i);
+      if(fAs) kvRow("Spesa annua gas dichiarata", "€ " + fAs, {bold:true});
+      spacer(1);
+      const fAr = gf(/RISPARMIO ANNUALE GAS:\s*€\s*([0-9\.\,]+)/i);
+      const fAm = gf(/Maggior costo annuale gas:\s*€\s*([0-9\.\,]+)/i);
+      if(fAr) bigBadge("Risparmio annuale GAS", "€ "+fAr, true);
+      else if(fAm) bigBadge("Maggior costo annuale gas", "€ "+fAm, false);
+      else paragraph("Spesa annua gas non dichiarata: il risparmio annuale non è calcolabile.");
+      spacer(2);
+    } else {
     // ----- Render GAS -----
     sectionTitle((kind==="upsell"?"":"Confronto ") + "GAS - " + (kind==="upsell"?"upsell ":"") + "periodo selezionato");
     if(periodoGas) kvRow("Periodo riferimento GAS", periodoGas, {bold:true});
@@ -1236,6 +1569,7 @@ function printOfferPdf(kind){
     if(gRisp)      bigBadge("Risparmio gas", "€ "+gRisp, true);
     else if(gMagg) bigBadge("Maggior costo gas", "€ "+gMagg, false);
     spacer(2);
+    }
 
     // ----- Riepilogo DUAL del periodo (NON per FLAT) -----
     if(isDual && !isDualFlat && (totSpesa || totOff)){
@@ -1246,7 +1580,7 @@ function printOfferPdf(kind){
       if(totDiff) bigBadge(totOk?"RISPARMIO PERIODO":"MAGGIOR COSTO PERIODO", totDiff, totOk);
       spacer(2);
     }
-    if(isDualFlat){
+    if(isDual && /risparmi luce e gas sono indipendenti/i.test(txt) && !(totSpesa || totOff)){
       paragraph("NB: i risparmi luce e gas sono indipendenti e non vengono sommati.");
       spacer(2);
     }
@@ -1389,8 +1723,14 @@ function printOfferPdf(kind){
     // DUAL/UPSELL: scadenze e validità distinte LUCE e GAS
     sectionTitle("Validità e scadenza");
     const rows = [];
-    const isBizDual = /BUSINESS\s+(FIX|FLEX)/i.test(txt);
-    const isGasBiz  = /FASTWEB GAS FLEX\s+BUSINESS/i.test(txt);
+    const _gm  = txt.match(/OFFERTA\s+FASTWEB GAS (?:FLEX|FLAT|BUSINESS)/i);
+    const _gTxt = _gm ? txt.slice(_gm.index) : "";
+    const _lTxt = _gm ? txt.slice(0, _gm.index) : txt;
+    const isBizDual = /BUSINESS\s+(FIX|FLEX)/i.test(_lTxt);
+    const gasKey = /^OFFERTA\s+FASTWEB GAS FLAT/i.test(_gTxt) ? "gasFlat"
+                 : /^OFFERTA\s+FASTWEB GAS BUSINESS FIX/i.test(_gTxt) ? "gasBizFix"
+                 : /^OFFERTA\s+FASTWEB GAS FLEX\s+BUSINESS/i.test(_gTxt) ? "gasBiz" : "gasDom";
+    const gasValidita = (gasKey==="gasFlat" || gasKey==="gasBizFix") ? "24 mesi" : "12 mesi";
     if(isDual){
       let scadLuce, validitaLuce;
       if(kind === "dualFlat"){
@@ -1405,11 +1745,11 @@ function printOfferPdf(kind){
       }
       rows.push(["Scadenza offerta LUCE", scadLuce]);
       rows.push(["Validità offerta LUCE", validitaLuce]);
-      rows.push(["Scadenza offerta GAS", getExpiry(isGasBiz ? 'gasBiz' : 'gasDom')]);
-      rows.push(["Validità offerta GAS", "12 mesi"]);
+      rows.push(["Scadenza offerta GAS", getExpiry(gasKey)]);
+      rows.push(["Validità offerta GAS", gasValidita]);
     } else if(kind === "upsell"){
-      rows.push(["Scadenza offerta GAS", getExpiry(isGasBiz ? 'gasBiz' : 'gasDom')]);
-      rows.push(["Validità offerta GAS", "12 mesi"]);
+      rows.push(["Scadenza offerta GAS", getExpiry(gasKey)]);
+      rows.push(["Validità offerta GAS", gasValidita]);
     }
     infoCard(rows);
   } else if(scadenza || validita){
@@ -1463,6 +1803,10 @@ function printOfferPdf(kind){
   } else {
     const nameMap={fix:"FASTWEB_LUCE_FIX",flex:"FASTWEB_LUCE_FLEX",businessFix:"FASTWEB_LUCE_BUSINESS_FIX",businessFlex:"FASTWEB_LUCE_BUSINESS_FLEX",dualFix:"FASTWEB_DUAL_LUCE_FIX_GAS",dualFlex:"FASTWEB_DUAL_LUCE_FLEX_GAS",dualFlat:"FASTWEB_DUAL_LUCE_FLAT_GAS",upsell:"FASTWEB_UPSELL_GAS"};
     filename = nameMap[kind] || kind;
+    if(kind==="dualFix"||kind==="dualFlex"||kind==="dualFlat"||kind==="upsell"){
+      if(/OFFERTA\s+FASTWEB GAS FLAT/i.test(txt)) filename = filename.replace(/GAS$/,"GAS_FLAT");
+      else if(/OFFERTA\s+FASTWEB GAS BUSINESS FIX/i.test(txt)) filename = filename.replace(/GAS$/,"GAS_BUSINESS_FIX");
+    }
   }
   doc.save(`Preventivo_${filename}.pdf`);
 }
@@ -1570,8 +1914,90 @@ function renderFlatCards(){
   }));
 }
 
+/* ===== Riepilogo: Fastweb GAS FLAT (stile FLAT luce) ===== */
+let riepilogoGasMode = "fixed"; // 'fixed' | 'seasonal'
+function renderGasFlatCards(){
+  if(!isGasFlatAvailable()) return;
+  const isClientR = getRiepilogoIsClient();
+  const seasonal = riepilogoGasMode === "seasonal";
+
+  const container=document.createElement("div");
+  container.innerHTML=`
+    <div class="riepilogoHeader" style="margin-top:14px">
+      <div class="fadeInUp" style="font-weight:900;letter-spacing:.3px">🔥 NUOVE OFFERTE FASTWEB GAS FLAT</div>
+      <div class="clientToggle" aria-label="Seleziona tipo prezzo">
+        <button class="seg ${!isClientR?'active':''}" data-client="0" type="button">Listino</button>
+        <button class="seg ${isClientR?'active':''}" data-client="1" type="button">Clienti Fastweb</button>
+      </div>
+      <div class="powerSwitch" aria-label="Seleziona modalità canone">
+        <button class="chip ${!seasonal?"active":""}" data-gmode="fixed" type="button">Canone fisso</button>
+        <button class="chip ${seasonal?"active":""}" data-gmode="seasonal" type="button">Stagionale</button>
+      </div>
+    </div>
+    <div class="cards" id="gasCardsWrap"></div>
+    <div class="hint" style="text-align:center;margin-top:10px;font-weight:800">
+      Condizioni bloccate per <strong>${GAS_FLAT_VALIDITA}</strong> • ${getExpiryText('gasFlat')} • Sconto convergenza <strong>${GAS_FLAT_CONV_DISCOUNT}€/mese</strong>
+    </div>
+    <div class="hint" style="text-align:center;margin-top:4px">
+      Vendibili solo in <strong>Switch</strong> • attivabili solo con <strong>Fastweb Luce</strong> (DUAL o upsell) • uso domestico C2-C3 •
+      1 cambio soglia e 1 cambio modalità di fatturazione inclusi • extra soglia fino a max ${GAS_FLAT_MAX_SMC.toLocaleString("it-IT")} Smc/anno •
+      +${eur2(GAS_FLAT_LOW_USE_BONUS)} €/Smc di restituzione se si consuma meno del 70% della soglia
+    </div>`;
+
+  const wrap=container.querySelector("#gasCardsWrap");
+  [0,1,2,3,4].forEach(t=>{
+    const soglia=GAS_FLAT_THRESHOLDS[t].toLocaleString("it-IT");
+    const rate=eur2(GAS_FLAT_RATE[t]);
+    const card=document.createElement("div");
+    card.className="cardTier";
+    let priceHtml;
+    if(!seasonal){
+      const list=gasFlatMonthly(t,false,"fixed");
+      const price=gasFlatMonthly(t,isClientR,"fixed");
+      priceHtml = `${isClientR?`<span class="oldPrice">${list}€</span>`:``}
+        <div class="bigPrice">${price}€</div>
+        <p class="subtitle">al mese</p>`;
+    } else {
+      const s=gasFlatMonthly(t,isClientR,"summer"), w=gasFlatMonthly(t,isClientR,"winter");
+      const sl=gasFlatMonthly(t,false,"summer"),  wl=gasFlatMonthly(t,false,"winter");
+      priceHtml = `<div class="seasonPrices">
+          <div><span class="sl">☀️ Estate · apr–set</span>${isClientR?`<span class="oldPrice sm">${sl}€</span>`:``}<span class="sp">${s}€</span></div>
+          <div><span class="sl">❄️ Inverno · ott–mar</span>${isClientR?`<span class="oldPrice sm">${wl}€</span>`:``}<span class="sp">${w}€</span></div>
+        </div>
+        <p class="subtitle">al mese</p>`;
+    }
+    card.innerHTML=`
+      <span class="pill">${TIER_NAMES[t]}</span>
+      ${priceHtml}
+      <p class="desc">
+        fino a ${soglia} Smc/anno
+        <br/>extra/rimborso ${rate}€/Smc
+      </p>`;
+    wrap.append(card);
+  });
+
+  const prev=document.getElementById("gasFlatCardsHost");
+  if(prev) prev.remove();
+  const host=document.createElement("div");
+  host.id="gasFlatCardsHost";
+  host.append(container);
+  document.getElementById("riepilogoOfferte").append(host);
+
+  host.querySelectorAll(".chip[data-gmode]").forEach(b=>b.addEventListener("click",()=>{
+    riepilogoGasMode=b.dataset.gmode;
+    document.getElementById("riepilogoOfferte").innerHTML="";
+    renderRiepilogo();
+  }));
+  host.querySelectorAll(".seg").forEach(b=>b.addEventListener("click",()=>{
+    riepilogoIsClient = b.dataset.client === "1";
+    document.getElementById("riepilogoOfferte").innerHTML="";
+    renderRiepilogo();
+  }));
+}
+
 function renderRiepilogo(){
   renderFlatCards();
+  renderGasFlatCards();
 
   const r=document.getElementById("riepilogoOfferte");
   const isClientR = getRiepilogoIsClient();
@@ -1629,6 +2055,11 @@ function renderRiepilogo(){
       <div class="sectionTitle">Fastweb Gas Flex Business</div>
       <div>Commercializzazione: <strong>€${isClientR?getGasBizCanoneConv():GAS_BIZ_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Gas: <strong>PSV + €0,13/Smc</strong></div>
       <div class="hint" style="margin-top:6px">${getExpiryText('gasBiz')} • Validità offerta: 12 mesi • Attivabile in DUAL con luce contestuale o in upsell su clienti Fastweb Luce</div>
+      ${isGasBizFixAvailable() ? `
+      <div class="divider"></div>
+      <div class="sectionTitle">Fastweb Gas Business Fix <span class="pill" style="font-size:11px;padding:3px 9px;vertical-align:middle">NOVITÀ</span></div>
+      <div>Commercializzazione: <strong>€${isClientR?GAS_BIZ_FIX_CANONE_CONV:GAS_BIZ_FIX_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente, in convergenza con Luce":"non cliente"}) + Gas: <strong>€${eur2(GAS_BIZ_FIX_PRICE)}/Smc</strong> (prezzo fisso)</div>
+      <div class="hint" style="margin-top:6px">${getExpiryText('gasBizFix')} • Condizioni economiche valide 24 mesi • Vendibile solo con Switch</div>` : ``}
     </div>`;
   r.append(business);
 
@@ -1693,8 +2124,8 @@ function buildFlatCardHTML(data, tierIdxToShow){
 
   const isRecommended = opt.tierIdx === data.bestTierIdx;
   const label = isRecommended
-    ? "FASCIA CONSIGLIATA"
-    : `ANALISI FASCIA ${TIER_NAMES[opt.tierIdx]}`;
+    ? "💡 LUCE FLAT · FASCIA CONSIGLIATA"
+    : `💡 LUCE FLAT · ANALISI FASCIA ${TIER_NAMES[opt.tierIdx]}`;
 
   let comparisonBlock = "";
   if(isRecommended){
@@ -1709,7 +2140,7 @@ function buildFlatCardHTML(data, tierIdxToShow){
   return `
     <div class="flatNavLabel">${label}</div>
     <div class="offerResult ${bgClass}">
-      <h3 class="resultTitle">Offerta FLAT ${TIER_NAMES[opt.tierIdx]}</h3>
+      <h3 class="resultTitle">💡 Offerta Fastweb Luce FLAT ${TIER_NAMES[opt.tierIdx]}</h3>
       <p class="periodoRef">Periodo di riferimento: ${data.periodoTxt}</p>
 
       <div class="kv"><div>Fascia visualizzata</div><div><strong>${TIER_NAMES[opt.tierIdx]}</strong></div></div>
@@ -1971,7 +2402,7 @@ function analyzeBolletta(skipWarning){
   const fixCard = document.createElement("div");
   fixCard.innerHTML = `
     <div class="offerResult ${diffFIX>=0 ? "green-bg" : "red-bg"}">
-      <h3 class="resultTitle">Offerta Fastweb Luce Fix</h3>
+      <h3 class="resultTitle">💡 Offerta Fastweb Luce Fix</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
       <div class="sectionTitle">Analisi periodo</div>
       <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
@@ -1996,7 +2427,7 @@ function analyzeBolletta(skipWarning){
   const flexCard = document.createElement("div");
   flexCard.innerHTML = `
     <div class="offerResult ${diffFLEX>=0 ? "green-bg" : "red-bg"}">
-      <h3 class="resultTitle">Offerta Fastweb Luce Flex</h3>
+      <h3 class="resultTitle">💡 Offerta Fastweb Luce Flex</h3>
       <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
       <div class="sectionTitle">Analisi periodo</div>
       <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
@@ -2023,7 +2454,7 @@ function analyzeBolletta(skipWarning){
     const bizFixCard = document.createElement("div");
     bizFixCard.innerHTML = `
       <div class="offerResult ${diffBizFIX>=0 ? 'green-bg' : 'red-bg'}">
-        <h3 class="resultTitle">Offerta Fastweb Luce Business Fix</h3>
+        <h3 class="resultTitle">💡 Offerta Fastweb Luce Business Fix</h3>
         <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
         <div class="sectionTitle">Analisi periodo</div>
         <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
@@ -2047,7 +2478,7 @@ function analyzeBolletta(skipWarning){
     const bizFlexCard = document.createElement("div");
     bizFlexCard.innerHTML = `
       <div class="offerResult ${diffBizFLEX>=0 ? 'green-bg' : 'red-bg'}">
-        <h3 class="resultTitle">Offerta Fastweb Luce Business Flex</h3>
+        <h3 class="resultTitle">💡 Offerta Fastweb Luce Business Flex</h3>
         <p class="periodoRef">Periodo di riferimento: ${periodoTxt}</p>
         <div class="sectionTitle">Analisi periodo</div>
         <div class="kv"><div>Quota consumi materia energia</div><div>€ ${money(qc)}</div></div>
@@ -2071,6 +2502,8 @@ function analyzeBolletta(skipWarning){
 
   // ===== GAS (DUAL o UPSELL) =====
   let gasComp = null;
+  _gasComps = {};
+  currentGasFlatAnalysis = null;
   if(gasState.active){
     if(_psvInfo.missing.length){
       const warn = document.createElement("div");
@@ -2079,24 +2512,47 @@ function analyzeBolletta(skipWarning){
       warn.innerHTML = `⚠ Per il gas i mesi <strong>${_psvInfo.missing.join(", ")}</strong> non hanno PSV disponibile e sono stati esclusi dal calcolo.`;
       risultato.appendChild(warn);
     }
-    gasComp = buildGasComputation({ isClient, isBiz, numMesi: numMesiGas, mediaPSV });
-    const gasCard = renderGasCard(gasComp, { periodoTxt: periodoGasTxt, periodiDiversi, periodoLuceTxt: periodoTxt });
-    const actions = document.createElement("div");
-    actions.className = "offerActions";
-    actions.style.margin = "10px 16px 18px";
-    if(gasState.mode === "upsell"){
-      actions.innerHTML = `
-        <button class="btn whatsapp" onclick="sendWhatsApp('upsell')">Invia Preventivo UPSELL Gas via WhatsApp</button>
-        <button class="btn secondary" onclick="printOfferPdf('upsell')">Stampa Preventivo UPSELL Gas</button>
-      `;
-    } else {
-      actions.innerHTML = `
-        <button class="btn whatsapp" onclick="askDualChoice('whatsapp')">Invia Preventivo DUAL via WhatsApp</button>
-        <button class="btn secondary" onclick="askDualChoice('pdf')">Stampa Preventivo DUAL</button>
-      `;
+    const gasCtx = { periodoTxt: periodoGasTxt, periodiDiversi, periodoLuceTxt: periodoTxt };
+    const appendGasCard = (comp)=>{
+      const card = renderGasCard(comp, gasCtx);
+      const actions = document.createElement("div");
+      actions.className = "offerActions";
+      actions.style.margin = "10px 16px 18px";
+      actions.innerHTML = gasActionsHTML(comp.gasKind);
+      card.appendChild(actions);
+      risultato.appendChild(card);
+    };
+
+    // Gas Flex (domestico o business)
+    gasComp = buildGasComputation({ isClient, isBiz, numMesi: numMesiGas, mediaPSV, gasKind:"flex" });
+    _gasComps.flex = gasComp;
+    appendGasCard(gasComp);
+
+    // Gas Business Fix (solo business, dall'8/10)
+    if(isBiz && isGasBizFixAvailable()){
+      _gasComps.bizFix = buildGasComputation({ isClient, isBiz, numMesi: numMesiGas, mediaPSV, gasKind:"bizFix" });
+      appendGasCard(_gasComps.bizFix);
     }
-    gasCard.appendChild(actions);
-    risultato.appendChild(gasCard);
+
+    // Gas FLAT (solo domestico, dall'8/10, se compilati consumo annuo + totale bolletta gas)
+    if(!isBiz && isGasFlatAvailable() && gasState.annuoSmc>0 && gasState.totBolletta>0){
+      if(gasState.annuoSmc > GAS_FLAT_MAX_SMC){
+        const warn = document.createElement("div");
+        warn.className = "upsellWarn";
+        warn.style.margin = "14px 0";
+        warn.innerHTML = `⚠ <strong>Fastweb Gas FLAT non proponibile</strong>: il consumo annuo inserito (${gasState.annuoSmc.toLocaleString("it-IT")} Smc) supera il limite massimo di ${GAS_FLAT_MAX_SMC.toLocaleString("it-IT")} Smc/anno.`;
+        risultato.appendChild(warn);
+      } else {
+        const options = [0,1,2,3,4].map(t=>computeGasFlatAnnual(gasState.annuoSmc, t, isClient));
+        const best = options.slice().sort((a,b)=>a.totalAnnual-b.totalAnnual)[0];
+        mountGasFlatNavigator({
+          options, bestTierIdx: best.tierIdx, isClient,
+          annuoSmc: gasState.annuoSmc, totBolletta: gasState.totBolletta,
+          spesaAnnua: gasState.spesaAnnua, hasSpesaAnnua: gasState.spesaAnnua>0,
+          numMesiGas, mesiGas: _gasMesiVals, periodoGasTxt, periodiDiversi, periodoLuceTxt: periodoTxt
+        }, risultato);
+      }
+    }
   }
 
   const closingNote =
@@ -2183,44 +2639,103 @@ ${diffBizFLEX>=0 ? "Risparmio: € "+money(diffBizFLEX) : "L’offerta in questo
 ${closingNote}`;
 
   // ===== WhatsApp DUAL / UPSELL =====
+  // I preventivi si costruiscono al momento dell'invio: la luce si sceglie nel popup DUAL,
+  // il gas è quello della card da cui si parte (Flex, Business Fix o FLAT con la fascia visualizzata).
   wDUAL_FIX = ""; wDUAL_FLEX = ""; wDUAL_FLAT = ""; wUPSELL = "";
   _dualIsBiz = isBiz;
-  _dualHasFlat = false;
+  _dualHasFlat = !isBiz && !!currentFlatAnalysis;
   _rebuildDualFlat = null;
+  _buildDualPayload = null;
+  _buildUpsellPayload = null;
   if(gasComp){
-    const gName = gasComp.offerName;
-    const gasBlock =
-`OFFERTA ${gName.toUpperCase()}
+    // ---- Blocchi GAS ----
+    const gasBlockStd = (comp)=>{
+      const gName = comp.offerName;
+      return `OFFERTA ${gName.toUpperCase()}
 Periodo gas: ${periodoGasTxt}
 Smc fatturati: ${gasState.smc.toLocaleString("it-IT")} Smc
 Quota consumi materia gas: € ${money(gasState.qc)}
 Quota fissa materia gas: € ${money(gasState.qf)}
-Costo gas inserito: € ${money(gasComp.spesaGas)}
+Costo gas inserito: € ${money(comp.spesaGas)}
+${comp.gasKind==="bizFix" ? `Prezzo gas: € ${eur2(GAS_BIZ_FIX_PRICE)}/Smc (fisso)\n` : ``}
+Costo con ${gName}: € ${money(comp.totalGas)}
+- di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(comp.fixedGas)}
+- di cui quota energia: € ${money(comp.energyGas)}
+Scadenza offerta: ${getExpiry(comp.expiryKey)}
+Validità offerta: ${comp.validita}
+${comp.diffGas>=0 ? "Risparmio gas: € "+money(comp.diffGas) : "L’offerta gas in questo caso è superiore di € "+money(Math.abs(comp.diffGas))}`;
+    };
+    const gasBlockFlat = ()=>{
+      const d = currentGasFlatAnalysis;
+      if(!d) return "";
+      const opt = d.options.find(o=>o.tierIdx===d.currentTierIdx);
+      const tier = TIER_NAMES[opt.tierIdx];
+      const listino = gasFlatMonthly(opt.tierIdx,false,"fixed");
+      const pc = gasFlatPeriodCosts(d, opt);
+      const pDelta = d.totBolletta - pc.fixed;
+      let annuo = `Consumo annuo gas: ${d.annuoSmc.toLocaleString("it-IT")} Smc
+Costo annuo Fastweb Gas Flat ${tier}: € ${money(opt.totalAnnual)}`
+        + (opt.extraSmc>0 ? ` (incl. extra soglia ${opt.extraSmc.toLocaleString("it-IT")} Smc: € ${money(opt.extraAnnual)})` : ``)
+        + (opt.marginSmc>0 ? ` (al netto della restituzione ${opt.marginSmc.toLocaleString("it-IT")} Smc: - € ${money(opt.refund)})` : ``);
+      if(d.hasSpesaAnnua){
+        const aDelta = d.spesaAnnua - opt.totalAnnual;
+        annuo += `\nSpesa annua gas dichiarata: € ${money(d.spesaAnnua)}
+${aDelta>=0 ? "RISPARMIO ANNUALE GAS: € "+money(aDelta) : "Maggior costo annuale gas: € "+money(Math.abs(aDelta))}`;
+      } else {
+        annuo += `\n(nessuna spesa annua gas dichiarata: risparmio annuale non calcolabile)`;
+      }
+      return `OFFERTA FASTWEB GAS FLAT — FASCIA ${tier}
+Periodo gas: ${periodoGasTxt}
+Canone mensile fisso: € ${money(opt.monthly)} ${isClient?`(cliente Fastweb/Vodafone, sconto convergenza ${GAS_FLAT_CONV_DISCOUNT}€ incluso - listino € ${money(listino)})`:"(listino)"}
+Canone stagionale: estate (apr-set) € ${money(gasFlatMonthly(opt.tierIdx,isClient,"summer"))} - inverno (ott-mar) € ${money(gasFlatMonthly(opt.tierIdx,isClient,"winter"))}
+Soglia gas: fino a ${opt.threshold.toLocaleString("it-IT")} Smc/anno
+Extra soglia / restituzione: € ${eur2(opt.rate)}/Smc
+Scadenza offerta: ${getExpiry('gasFlat')}
+Validità offerta: ${GAS_FLAT_VALIDITA}
 
-Costo con ${gName}: € ${money(gasComp.totalGas)}
-- di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(gasComp.fixedGas)}
-- di cui quota energia: € ${money(gasComp.energyGas)}
-Scadenza offerta: ${getExpiry(isBiz?'gasBiz':'gasDom')}
-Validità offerta: 12 mesi
-${gasComp.diffGas>=0 ? "Risparmio gas: € "+money(gasComp.diffGas) : "L’offerta gas in questo caso è superiore di € "+money(Math.abs(gasComp.diffGas))}`;
+Analisi GAS FLAT - periodo
+Spesa bolletta gas attuale (periodo): € ${money(d.totBolletta)}
+Costo con Fastweb Gas Flat ${tier} (${d.numMesiGas} mesi, canone fisso): € ${money(pc.fixed)}
+Costo con canone stagionale (${d.numMesiGas} mesi): € ${money(pc.seasonal)}
+${pDelta>=0 ? "Risparmio gas periodo: € "+money(pDelta) : "L’offerta gas in questo caso è superiore nel periodo di € "+money(Math.abs(pDelta))}
 
-    if(gasState.mode === "upsell"){
-      wUPSELL =
-`---- PREVENTIVO UPSELL GAS ----
+Analisi GAS FLAT - annuale
+${annuo}
+Vendibile solo in Switch, solo con Fastweb Luce. Confronto sul totale bolletta gas.`;
+    };
+    const gasBlockFor = (gk)=> gk==="flat" ? gasBlockFlat()
+                              : gasBlockStd(gk==="bizFix" ? _gasComps.bizFix : _gasComps.flex);
+    const gasCompFor  = (gk)=> gk==="bizFix" ? _gasComps.bizFix : (gk==="flex" ? _gasComps.flex : null);
+    const gasHeadFor  = (gk)=>{
+      if(gk==="flat"){
+        const d=currentGasFlatAnalysis;
+        return "GAS FLAT" + (d ? " "+TIER_NAMES[d.currentTierIdx] : "");
+      }
+      return gk==="bizFix" ? "GAS BUSINESS FIX" : (isBiz ? "GAS FLEX BUSINESS" : "GAS FLEX");
+    };
+
+    const flatClosingNote =
+`NOTA:
+Le offerte FLAT sono confrontate con il totale bolletta (materia, trasporto, oneri di sistema e IVA inclusi). Per le offerte a consumo il calcolo si riferisce solo alla spesa materia del periodo e non include IVA, oneri di sistema, trasporto e altre voci. Il calcolo è indicativo.
+Per ulteriori dettagli, contattaci!`;
+
+    // ---- UPSELL ----
+    _buildUpsellPayload = (gk)=>
+`---- PREVENTIVO UPSELL ${gasHeadFor(gk)} ----
 Nome Cliente: ${nome}
 NB: cliente già Fastweb Luce. Only Gas non gestibile.
 Periodo di riferimento: ${periodoTxt}
 
-${gasBlock}
+${gasBlockFor(gk)}
 
-${closingNote}`;
-    } else {
-      const validitaLuceFix  = isBiz ? getBizFixValidita()  : "12 mesi";
-      const validitaLuceFlex = isBiz ? getBizFlexValidita() : "12 mesi";
+${gk==="flat" ? flatClosingNote : closingNote}`;
 
-      // ---- DUAL FIX ----
-      const luceFixName = isBiz ? "Fastweb Luce Business Fix" : "Fastweb Luce Fix";
-      const luceFixBlock =
+    // ---- Blocchi LUCE ----
+    const validitaLuceFix  = isBiz ? getBizFixValidita()  : "12 mesi";
+    const validitaLuceFlex = isBiz ? getBizFlexValidita() : "12 mesi";
+    const luceFixName  = isBiz ? "Fastweb Luce Business Fix"  : "Fastweb Luce Fix";
+    const luceFlexName = isBiz ? "Fastweb Luce Business Flex" : "Fastweb Luce Flex";
+    const luceFixBlock =
 `OFFERTA ${luceFixName.toUpperCase()}
 Quota consumi materia energia: € ${money(qc)}
 Quota fissa materia energia: € ${money(qf)}
@@ -2234,30 +2749,7 @@ Validità offerta: ${validitaLuceFix}
 ${(isBiz?diffBizFIX:diffFIX)>=0
   ? "Risparmio luce: € "+money(isBiz?diffBizFIX:diffFIX)
   : "L’offerta luce in questo caso è superiore di € "+money(Math.abs(isBiz?diffBizFIX:diffFIX))}`;
-      const totFixOff   = (isBiz?totalBizFIX:totalFIX) + gasComp.totalGas;
-      const totFixSpesa = spesaEnergia + gasComp.spesaGas;
-      const totFixDiff  = totFixSpesa - totFixOff;
-      wDUAL_FIX =
-`---- PREVENTIVO DUAL ${(isBiz?"LUCE BUSINESS FIX":"LUCE FIX")} + GAS ----
-Nome Cliente: ${nome}
-Periodo luce: ${periodoTxt}${periodiDiversi?`\nPeriodo gas:  ${periodoGasTxt}`:""}
-
-${luceFixBlock}
-
-${gasBlock}
-
-${periodiDiversi
-  ? "==== RIEPILOGO DUAL ====\nNB: luce e gas si riferiscono a periodi diversi — i risparmi restano indipendenti e non vengono sommati."
-  : `==== RIEPILOGO DUAL ====
-Spesa attuale (luce + gas): € ${money(totFixSpesa)}
-Costo con Fastweb (${luceFixName.toLowerCase()} + ${gName.toLowerCase()}): € ${money(totFixOff)}
-${totFixDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFixDiff) : "Offerta superiore di € "+money(Math.abs(totFixDiff))}`}
-${!isBiz ? getWelcomeBonusText() : ""}
-${closingNote}`;
-
-      // ---- DUAL FLEX ----
-      const luceFlexName = isBiz ? "Fastweb Luce Business Flex" : "Fastweb Luce Flex";
-      const luceFlexBlock =
+    const luceFlexBlock =
 `OFFERTA ${luceFlexName.toUpperCase()}
 Quota consumi materia energia: € ${money(qc)}
 Quota fissa materia energia: € ${money(qf)}
@@ -2271,53 +2763,24 @@ Validità offerta: ${validitaLuceFlex}
 ${(isBiz?diffBizFLEX:diffFLEX)>=0
   ? "Risparmio luce: € "+money(isBiz?diffBizFLEX:diffFLEX)
   : "L’offerta luce in questo caso è superiore di € "+money(Math.abs(isBiz?diffBizFLEX:diffFLEX))}`;
-      const totFlexOff   = (isBiz?totalBizFLEX:totalFLEX) + gasComp.totalGas;
-      const totFlexSpesa = spesaEnergia + gasComp.spesaGas;
-      const totFlexDiff  = totFlexSpesa - totFlexOff;
-      wDUAL_FLEX =
-`---- PREVENTIVO DUAL ${(isBiz?"LUCE BUSINESS FLEX":"LUCE FLEX")} + GAS ----
-Nome Cliente: ${nome}
-Periodo luce: ${periodoTxt}${periodiDiversi?`\nPeriodo gas:  ${periodoGasTxt}`:""}
-
-${luceFlexBlock}
-
-${gasBlock}
-
-${periodiDiversi
-  ? "==== RIEPILOGO DUAL ====\nNB: luce e gas si riferiscono a periodi diversi — i risparmi restano indipendenti e non vengono sommati."
-  : `==== RIEPILOGO DUAL ====
-Spesa attuale (luce + gas): € ${money(totFlexSpesa)}
-Costo con Fastweb (${luceFlexName.toLowerCase()} + ${gName.toLowerCase()}): € ${money(totFlexOff)}
-${totFlexDiff>=0 ? "RISPARMIO TOTALE: € "+money(totFlexDiff) : "Offerta superiore di € "+money(Math.abs(totFlexDiff))}`}
-${!isBiz ? getWelcomeBonusText() : ""}
-${closingNote}`;
-
-      // ---- DUAL FLAT (closure: fascia attualmente visualizzata, no cumulo annuale) ----
-      if(!isBiz && currentFlatAnalysis){
-        _rebuildDualFlat = function(){
-          if(!currentFlatAnalysis) return;
-          const flatOpt = currentFlatAnalysis.options.find(o=>o.tierIdx===currentFlatAnalysis.currentTierIdx);
-          if(!flatOpt) return;
-          const tierName = TIER_NAMES[flatOpt.tierIdx];
-          const flatPeriodCost  = flatOpt.monthly * numMesi;
-          const flatPeriodSpesa = totaleBolletta;
-          const flatPeriodDiff  = flatPeriodSpesa - flatPeriodCost;
-
-          const luceAnnuoTot = flatOpt.totalAnnual;
-          let luceAnnuoLine = "";
-          if(currentFlatAnalysis.hasSpesaAnnua){
-            const luceSpesaAnnua = currentFlatAnalysis.spesaAnnuaInput;
-            const luceAnnuoDiff  = luceSpesaAnnua - luceAnnuoTot;
-            luceAnnuoLine =
-`Spesa annua luce dichiarata: € ${money(luceSpesaAnnua)}
-Costo annuo Fastweb Luce Flat ${tierName}: € ${money(luceAnnuoTot)}
+    const luceFlatBlock = ()=>{
+      if(isBiz || !currentFlatAnalysis) return "";
+      const flatOpt = currentFlatAnalysis.options.find(o=>o.tierIdx===currentFlatAnalysis.currentTierIdx);
+      if(!flatOpt) return "";
+      const tierName = TIER_NAMES[flatOpt.tierIdx];
+      const flatPeriodCost = flatOpt.monthly * numMesi;
+      const flatPeriodDiff = totaleBolletta - flatPeriodCost;
+      let luceAnnuoLine;
+      if(currentFlatAnalysis.hasSpesaAnnua){
+        const luceAnnuoDiff = currentFlatAnalysis.spesaAnnuaInput - flatOpt.totalAnnual;
+        luceAnnuoLine =
+`Spesa annua luce dichiarata: € ${money(currentFlatAnalysis.spesaAnnuaInput)}
+Costo annuo Fastweb Luce Flat ${tierName}: € ${money(flatOpt.totalAnnual)}
 ${luceAnnuoDiff>=0 ? "RISPARMIO ANNUALE LUCE: € "+money(luceAnnuoDiff) : "Maggior costo annuale luce: € "+money(Math.abs(luceAnnuoDiff))}`;
-          } else {
-            luceAnnuoLine = `Costo annuo Fastweb Luce Flat ${tierName}: € ${money(luceAnnuoTot)} (nessuna spesa annua dichiarata: risparmio annuale non calcolabile)`;
-          }
-
-          const luceFlatBlock =
-`OFFERTA FASTWEB LUCE FLAT — FASCIA ${tierName}
+      } else {
+        luceAnnuoLine = `Costo annuo Fastweb Luce Flat ${tierName}: € ${money(flatOpt.totalAnnual)} (nessuna spesa annua dichiarata: risparmio annuale non calcolabile)`;
+      }
+      return `OFFERTA FASTWEB LUCE FLAT — FASCIA ${tierName}
 Costo mensile fascia: € ${money(flatOpt.monthly)} ${isClient?"(cliente Fastweb/Vodafone, sconto convergenza incluso)":"(listino)"}
 Soglia fascia: fino a ${flatOpt.threshold.toLocaleString("it-IT")} kWh/anno
 Scadenza offerta: ${getExpiry('flat')}
@@ -2330,25 +2793,277 @@ ${flatPeriodDiff>=0 ? "Risparmio luce periodo: € "+money(flatPeriodDiff) : "L�
 
 Analisi LUCE - annuale
 ${luceAnnuoLine}`;
+    };
 
-          wDUAL_FLAT =
-`---- PREVENTIVO DUAL LUCE FLAT ${tierName} + GAS ----
+    // ---- DUAL: luceKind 'fix'|'flex'|'flat' × gasKind 'flex'|'bizFix'|'flat' ----
+    _buildDualPayload = (lk, gk)=>{
+      const luceHead = lk==="flat"
+        ? "LUCE FLAT " + (currentFlatAnalysis ? TIER_NAMES[currentFlatAnalysis.currentTierIdx] : "")
+        : (lk==="fix" ? (isBiz?"LUCE BUSINESS FIX":"LUCE FIX") : (isBiz?"LUCE BUSINESS FLEX":"LUCE FLEX"));
+      const luceBlock = lk==="flat" ? luceFlatBlock() : (lk==="fix" ? luceFixBlock : luceFlexBlock);
+      const gc = gasCompFor(gk);
+      let riepilogo;
+      if(lk!=="flat" && gc && !periodiDiversi){
+        const luceName = lk==="fix" ? luceFixName : luceFlexName;
+        const luceTot  = lk==="fix" ? (isBiz?totalBizFIX:totalFIX) : (isBiz?totalBizFLEX:totalFLEX);
+        const totOff = luceTot + gc.totalGas;
+        const totSpesa = spesaEnergia + gc.spesaGas;
+        const totDiff = totSpesa - totOff;
+        riepilogo = `==== RIEPILOGO DUAL ====
+Spesa attuale (luce + gas): € ${money(totSpesa)}
+Costo con Fastweb (${luceName.toLowerCase()} + ${gc.offerName.toLowerCase()}): € ${money(totOff)}
+${totDiff>=0 ? "RISPARMIO TOTALE: € "+money(totDiff) : "Offerta superiore di € "+money(Math.abs(totDiff))}`;
+      } else if(periodiDiversi){
+        riepilogo = "==== RIEPILOGO DUAL ====\nNB: luce e gas si riferiscono a periodi diversi — i risparmi restano indipendenti e non vengono sommati.";
+      } else {
+        riepilogo = "NB: i risparmi luce e gas sono indipendenti e non vengono sommati.";
+      }
+      return `---- PREVENTIVO DUAL ${luceHead} + ${gasHeadFor(gk)} ----
 Nome Cliente: ${nome}
 Periodo luce: ${periodoTxt}${periodiDiversi?`\nPeriodo gas:  ${periodoGasTxt}`:""}
 
-${luceFlatBlock}
+${luceBlock}
 
-${gasBlock}
+${gasBlockFor(gk)}
 
-NB: i risparmi luce e gas sono indipendenti e non vengono sommati.
-${getWelcomeBonusText()}
-${closingNote}`;
-        };
-        _dualHasFlat = true;
-        _rebuildDualFlat();
-      }
-    }
+${riepilogo}
+${!isBiz ? getWelcomeBonusText() : ""}
+${(lk==="flat" || gk==="flat") ? flatClosingNote : closingNote}`;
+    };
   }
+
+  /* ===== MODELLO DATI DEL PREVENTIVO PDF =====
+     Il PDF legge i numeri direttamente dal calcolo (non dal testo WhatsApp):
+     risparmio in evidenza -> condizioni economiche -> dettaglio del calcolo -> note. */
+  _buildPdfModel = (kind, gk)=>{
+    const E = n => "€ " + moneyG(n);
+    const notaConsumo = "Il calcolo è indicativo e si riferisce solo alla spesa per la materia (energia o gas) del periodo selezionato: non comprende IVA, oneri di sistema, trasporto, canone RAI e altre voci della bolletta.";
+    const notaFlat    = "Le offerte FLAT sono confrontate con il totale bolletta (materia, trasporto, oneri di sistema e IVA inclusi; escluso il canone RAI). Le offerte a consumo sono confrontate con la sola spesa per la materia del periodo. Il calcolo è indicativo.";
+    // canone + riga dedicata allo sconto convergenza (più leggibile di una nota tra parentesi)
+    const canoneRows = (label, canone, listino, conv, cli)=>{
+      const c = (cli===undefined) ? isClient : cli;
+      return c
+        ? [[label, `${E(canone)}/mese`], ["Sconto convergenza", `- ${E(listino-canone)}/mese (listino ${E(listino)})`]]
+        : [[label, `${E(canone)}/mese`], ["Clienti Fastweb/Vodafone", `${E(conv)}/mese`]];
+    };
+
+    // --- LUCE a consumo (fix | flex) ---
+    const luceConsumo = (lk)=>{
+      const fix = lk==="fix";
+      const name = isBiz ? (fix?"Fastweb Luce Business Fix":"Fastweb Luce Business Flex") : (fix?"Fastweb Luce Fix":"Fastweb Luce Flex");
+      const canone = isBiz ? canoneBiz : canoneDom;
+      const listino = isBiz ? BIZ_CANONE_LISTINO : DOM_CANONE_LISTINO;
+      const conv = isBiz ? getBizCanoneConv() : getDomCanoneConv();
+      const tot = isBiz ? (fix?totalBizFIX:totalBizFLEX) : (fix?totalFIX:totalFLEX);
+      const fixed = isBiz ? (fix?fixedBizFIX:fixedBizFLEX) : (fix?fixedFIX:fixedFLEX);
+      const energy = isBiz ? (fix?energyBizFIX:energyBizFLEX) : (fix?energyFIX:energyFLEX);
+      const diff = isBiz ? (fix?diffBizFIX:diffBizFLEX) : (fix?diffFIX:diffFLEX);
+      const prezzo = fix ? `€ ${rateTxt(isBiz?getBizFixRaw():getDomFixRaw())}/kWh (prezzo fisso)`
+                         : `PUN + € ${rateTxt(isBiz?BIZ_FLEX_SPREAD:DOM_FLEX_SPREAD)}/kWh`;
+      const expKey = isBiz ? (fix?"businessFix":"businessFlex") : lk;
+      const durata = isBiz ? (fix?getBizFixValidita():getBizFlexValidita()) : "12 mesi";
+      return {
+        name, tipo:"luce", saving:diff, annual:null,
+        cond:{ name, tipo:"luce", rows:[
+          ["Prezzo energia", prezzo],
+          ["Dispacciamento", "€ 0,011/kWh"],
+          ...canoneRows("Canone mensile", canone, listino, conv),
+          ["Sottoscrivibile entro il", getExpiry(expKey)],
+          ["Condizioni valide per", durata]
+        ]},
+        dets:[{ title:`Luce · ${periodoTxt}`, rows:[
+          {k:"Spesa attuale per la materia energia", v:E(spesaEnergia), bold:true},
+          {k:"quota consumi", v:E(qc), indent:true},
+          {k:"quota fissa", v:E(qf), indent:true},
+          {k:`Spesa con ${name}`, v:E(tot), bold:true},
+          {k:`canone ${E(canone)} × ${numMesi} mesi`, v:E(fixed), indent:true},
+          {k:`energia (${numG(kwPeriodo)} kWh)`, v:E(energy), indent:true},
+        ], esito:diff, esitoLabel:"luce nel periodo" }]
+      };
+    };
+
+    // --- LUCE FLAT (fascia attualmente visualizzata) ---
+    const luceFlat = ()=>{
+      const d = currentFlatAnalysis; if(!d) return null;
+      const o = d.options.find(x=>x.tierIdx===d.currentTierIdx); if(!o) return null;
+      const tier = TIER_NAMES[o.tierIdx];
+      const listino = getListinoMonthlyByPower(o.tierIdx, d.potenzaSel);
+      const conv = getClientMonthlyByPower(o.tierIdx, d.potenzaSel);
+      const periodCost = o.monthly * d.numMesi;
+      const pDiff = d.totaleBolletta - periodCost;
+      const aDiff = d.hasSpesaAnnua ? d.spesaAnnuaInput - o.totalAnnual : null;
+      const soglia = `fino a ${numG(o.threshold)} kWh/anno` + (o.tierIdx===4 ? ` (tolleranza fino a ${numG((o.threshold+ULTRA_TOLERANCE))})` : ``);
+      const annRows = [
+        {k:`Consumo annuo dichiarato`, v:`${numG(d.consumoAnnuo)} kWh`},
+        {k:`Canone ${E(o.monthly)} × 12 mesi`, v:E(o.baseAnnual)},
+      ];
+      if(o.extraKwh>0)  annRows.push({k:`extra soglia ${numG(o.extraKwh)} kWh × € ${rateTxt(o.extraRate)}`, v:"+ "+E(o.extraAnnual), indent:true});
+      if(o.marginKwh>0) annRows.push({k:`restituzione ${numG(o.marginKwh)} kWh × € ${rateTxt(o.refundRate)}`, v:"- "+E(o.potentialRefund), indent:true});
+      annRows.push({k:`Costo annuo con Fastweb Luce FLAT ${tier}`, v:E(o.totalAnnual), bold:true});
+      if(d.hasSpesaAnnua) annRows.push({k:"Spesa annua attuale dichiarata", v:E(d.spesaAnnuaInput), bold:true});
+      return {
+        name:`Fastweb Luce FLAT ${tier}`, tipo:"luce", saving:pDiff, annual:aDiff, tier,
+        cond:{ name:`Fastweb Luce FLAT ${tier}`, tipo:"luce", rows:[
+          ...canoneRows("Canone mensile", o.monthly, listino, conv, d.isClient),
+          ["Consumi inclusi", soglia],
+          ["Extra soglia / restituzione", `€ ${rateTxt(o.extraRate)}/kWh`],
+          ["Potenza contatore", d.potenzaValueText],
+          ["Sottoscrivibile entro il", getExpiry("flat")],
+          ["Condizioni valide per", getActiveFlatValidita()]
+        ]},
+        dets:[
+          { title:`Luce FLAT · ${d.periodoTxt}`, rows:[
+            {k:"Totale bolletta luce attuale", v:E(d.totaleBolletta), bold:true},
+            {k:`Canone Fastweb ${E(o.monthly)} × ${d.numMesi} mesi`, v:E(periodCost), bold:true},
+          ], esito:pDiff, esitoLabel:"luce nel periodo" },
+          { title:"Luce FLAT · proiezione annua", rows:annRows, esito:aDiff, esitoLabel:"luce annuo" }
+        ]
+      };
+    };
+
+    // --- GAS a consumo (flex | bizFix) ---
+    const gasConsumo = (k)=>{
+      const c = k==="bizFix" ? _gasComps.bizFix : _gasComps.flex; if(!c) return null;
+      let listino, conv, prezzo;
+      if(k==="bizFix"){ listino=GAS_BIZ_FIX_CANONE_LISTINO; conv=GAS_BIZ_FIX_CANONE_CONV; prezzo=`€ ${eur2(GAS_BIZ_FIX_PRICE)}/Smc (prezzo fisso)`; }
+      else if(isBiz){ listino=GAS_BIZ_CANONE_LISTINO; conv=getGasBizCanoneConv(); prezzo=`PSV + € ${eur2(c.spread)}/Smc`; }
+      else { listino=GAS_DOM_CANONE_LISTINO; conv=getGasDomCanoneConv(); prezzo=`PSV + € ${eur2(c.spread)}/Smc`; }
+      const rows = [
+        ["Prezzo gas", prezzo],
+        ...canoneRows("Commercializzazione", c.canone, listino, conv),
+        ["Sottoscrivibile entro il", getExpiry(c.expiryKey)],
+        ["Condizioni valide per", c.validita]
+      ];
+      if(k==="bizFix") rows.push(["Attivazione", "solo con cambio fornitore (Switch)"]);
+      return {
+        name:c.offerName, tipo:"gas", saving:c.diffGas, annual:null,
+        cond:{ name:c.offerName, tipo:"gas", rows },
+        dets:[{ title:`Gas · ${periodoGasTxt}`, rows:[
+          {k:"Spesa attuale per la materia gas", v:E(c.spesaGas), bold:true},
+          {k:"quota consumi", v:E(gasState.qc), indent:true},
+          {k:"quota fissa", v:E(gasState.qf), indent:true},
+          {k:`Spesa con ${c.offerName}`, v:E(c.totalGas), bold:true},
+          {k:`commercializzazione ${E(c.canone)} × ${c.numMesi} mesi`, v:E(c.fixedGas), indent:true},
+          {k:`gas (${numG(gasState.smc)} Smc)`, v:E(c.energyGas), indent:true},
+        ], esito:c.diffGas, esitoLabel:"gas nel periodo" }]
+      };
+    };
+
+    // --- GAS FLAT (fascia attualmente visualizzata) ---
+    const gasFlat = ()=>{
+      const d = currentGasFlatAnalysis; if(!d) return null;
+      const o = d.options.find(x=>x.tierIdx===d.currentTierIdx); if(!o) return null;
+      const tier = TIER_NAMES[o.tierIdx];
+      const listino = gasFlatMonthly(o.tierIdx,false,"fixed");
+      const pc = gasFlatPeriodCosts(d, o);
+      const pDiff = d.totBolletta - pc.fixed;
+      const aDiff = d.hasSpesaAnnua ? d.spesaAnnua - o.totalAnnual : null;
+      const annRows = [
+        {k:"Consumo annuo dichiarato", v:`${numG(d.annuoSmc)} Smc`},
+        {k:`Canone ${E(o.monthly)} × 12 mesi`, v:E(o.baseAnnual)},
+      ];
+      if(o.extraSmc>0)  annRows.push({k:`extra soglia ${numG(o.extraSmc)} Smc × € ${eur2(o.rate)}`, v:"+ "+E(o.extraAnnual), indent:true});
+      if(o.marginSmc>0) annRows.push({k:`restituzione ${numG(o.marginSmc)} Smc × € ${eur2(o.refundRate)}`, v:"- "+E(o.refund), indent:true});
+      annRows.push({k:`Costo annuo con Fastweb Gas FLAT ${tier}`, v:E(o.totalAnnual), bold:true});
+      if(d.hasSpesaAnnua) annRows.push({k:"Spesa annua gas attuale dichiarata", v:E(d.spesaAnnua), bold:true});
+      return {
+        name:`Fastweb Gas FLAT ${tier}`, tipo:"gas", saving:pDiff, annual:aDiff, tier,
+        cond:{ name:`Fastweb Gas FLAT ${tier}`, tipo:"gas", rows:[
+          ...canoneRows("Canone mensile fisso", o.monthly, listino, listino-GAS_FLAT_CONV_DISCOUNT, d.isClient),
+          ["Oppure stagionale", `${E(gasFlatMonthly(o.tierIdx,d.isClient,"summer"))} apr-set · ${E(gasFlatMonthly(o.tierIdx,d.isClient,"winter"))} ott-mar`],
+          ["Consumi inclusi", `fino a ${numG(o.threshold)} Smc/anno`],
+          ["Extra soglia / restituzione", `€ ${eur2(o.rate)}/Smc`],
+          ["Bonus consumi bassi", `+ € 0,02/Smc se consumi < 70%`],
+          ["Sottoscrivibile entro il", getExpiry("gasFlat")],
+          ["Condizioni valide per", GAS_FLAT_VALIDITA],
+          ["Attivazione", "solo con cambio fornitore (Switch)"]
+        ]},
+        dets:[
+          { title:`Gas FLAT · ${d.periodoGasTxt}`, rows:[
+            {k:"Totale bolletta gas attuale", v:E(d.totBolletta), bold:true},
+            {k:`Canone fisso ${E(o.monthly)} × ${d.numMesiGas} mesi`, v:E(pc.fixed), bold:true},
+            {k:`con canone stagionale (${pc.nWinter} mesi inverno, ${pc.nSummer} estate)`, v:E(pc.seasonal), indent:true},
+          ], esito:pDiff, esitoLabel:"gas nel periodo" },
+          { title:"Gas FLAT · proiezione annua", rows:annRows, esito:aDiff, esitoLabel:"gas annuo" }
+        ]
+      };
+    };
+
+    const tileFor = (b, lbl)=>{
+      const tiles = [{ label: lbl+" nel periodo", value:b.saving }];
+      if(b.annual!=null) tiles.push({ label: lbl+" annuo stimato", value:b.annual });
+      return tiles;
+    };
+    const clienteRows = (periodi)=> [["Cliente", nome || "—"], ...periodi];
+    const luceKindLbl = { fix:"LUCE FIX", flex:"LUCE FLEX", flat:"LUCE FLAT" };
+    const gasKindLbl  = { flex:(isBiz?"GAS FLEX BUSINESS":"GAS FLEX"), bizFix:"GAS BUSINESS FIX", flat:"GAS FLAT" };
+
+    // ---- offerte luce singole ----
+    if(kind==="fix" || kind==="flex" || kind==="businessFix" || kind==="businessFlex"){
+      const lk = (kind==="fix"||kind==="businessFix") ? "fix" : "flex";
+      const L = luceConsumo(lk);
+      const sub = (lk==="fix" ? "Luce a prezzo fisso" : "Luce a prezzo indicizzato PUN") + (isBiz ? " · Partita IVA" : " · uso domestico");
+      return { filename: (isBiz?"FASTWEB_LUCE_BUSINESS_":"FASTWEB_LUCE_") + lk.toUpperCase(),
+        title: L.name.toUpperCase(), subtitle: sub,
+        cliente: clienteRows([["Periodo analizzato", periodoTxt]]),
+        tiles: [{ label:"Risparmio luce nel periodo", value:L.saving, sub:`${numMesi} ${numMesi===1?"mese":"mesi"} analizzati` }],
+        conds:[L.cond], dets:L.dets, note:notaConsumo,
+        bonus: !isBiz && isWelcomeBonusActive() };
+    }
+    // ---- luce FLAT singola ----
+    if(kind==="canone"){
+      const F = luceFlat(); if(!F) return null;
+      return { filename:`FASTWEB_LUCE_FLAT_${F.tier}`, title:F.name.toUpperCase(), subtitle:"Canone mensile fisso · uso domestico",
+        cliente: clienteRows([["Periodo analizzato", periodoTxt]]),
+        tiles: tileFor(F, "Risparmio luce"), conds:[F.cond], dets:F.dets, note:notaFlat,
+        bonus: isWelcomeBonusActive() };
+    }
+    // ---- DUAL luce + gas ----
+    if(kind==="dualFix" || kind==="dualFlex" || kind==="dualFlat"){
+      const lk = kind==="dualFix" ? "fix" : kind==="dualFlex" ? "flex" : "flat";
+      const gkk = gk || "flex";
+      const L = lk==="flat" ? luceFlat() : luceConsumo(lk);
+      const G = gkk==="flat" ? gasFlat() : gasConsumo(gkk);
+      if(!L || !G) return null;
+      const cumulabile = lk!=="flat" && gkk!=="flat" && !periodiDiversi;
+      let tiles, footnote = "";
+      if(cumulabile){
+        tiles = [{ label:"Risparmio totale luce + gas nel periodo", value:L.saving+G.saving,
+                   sub:`luce ${E(L.saving)}  +  gas ${E(G.saving)}  ·  ${numMesi} mesi analizzati` }];
+      } else {
+        const tileOf = (b, lbl)=> b.annual!=null
+          ? { label:lbl, value:b.annual, pairs:[{lbl:"nel periodo", v:b.saving}, {lbl:"annuo stimato", v:b.annual}] }
+          : { label:lbl, value:b.saving, pairs:[{lbl:"nel periodo", v:b.saving}] };
+        tiles = [tileOf(L, "Risparmio luce"), tileOf(G, "Risparmio gas")];
+        footnote = periodiDiversi
+          ? "Luce e gas si riferiscono a periodi diversi: i due risparmi sono calcolati separatamente e non vanno sommati."
+          : "Luce e gas sono confrontati con basi diverse (offerta FLAT sul totale bolletta): i due risparmi non vanno sommati.";
+      }
+      const periodi = periodiDiversi ? [["Periodo luce", periodoTxt], ["Periodo gas", periodoGasTxt]] : [["Periodo analizzato", periodoTxt]];
+      const lName = lk==="flat" ? luceKindLbl.flat+" "+L.tier : luceKindLbl[lk];
+      const gName = gkk==="flat" ? "GAS FLAT "+G.tier : gasKindLbl[gkk];
+      return { filename:`FASTWEB_DUAL_${lName.replace(/ /g,"_")}_${gName.replace(/ /g,"_")}`,
+        title:`${isBiz && lk!=="flat" ? lName.replace("LUCE","LUCE BUSINESS") : lName} + ${gName}`,
+        subtitle:"Offerta luce e gas Fastweb" + (isBiz ? " · Partita IVA" : ""),
+        cliente: clienteRows(periodi), tiles, footnote,
+        conds:[L.cond, G.cond], dets:[...L.dets, ...G.dets],
+        note: (lk==="flat"||gkk==="flat") ? notaFlat : notaConsumo,
+        bonus: !isBiz && isWelcomeBonusActive(), twoCols:true };
+    }
+    // ---- UPSELL gas ----
+    if(kind==="upsell"){
+      const gkk = gk || "flex";
+      const G = gkk==="flat" ? gasFlat() : gasConsumo(gkk);
+      if(!G) return null;
+      const gName = gkk==="flat" ? "GAS FLAT "+G.tier : gasKindLbl[gkk];
+      return { filename:`FASTWEB_UPSELL_${gName.replace(/ /g,"_")}`, title:G.name.toUpperCase(),
+        subtitle:"Offerta gas per clienti già Fastweb Luce",
+        cliente: clienteRows([["Periodo analizzato", periodoGasTxt]]),
+        tiles: tileFor(G, "Risparmio gas"), conds:[G.cond], dets:G.dets,
+        note: gkk==="flat" ? notaFlat : notaConsumo };
+    }
+    return null;
+  };
 
   const banner = document.getElementById('resultBanner');
   banner.style.display = 'block';
@@ -2414,6 +3129,10 @@ function openGasModal(){
   document.getElementById("gasSmc").value          = gasState.active ? gasState.smc : "";
   document.getElementById("gasQuotaConsumi").value = gasState.active ? gasState.qc  : "";
   document.getElementById("gasQuotaFissa").value   = gasState.active ? gasState.qf  : "";
+  document.getElementById("gasAnnuoSmc").value     = gasState.active && gasState.annuoSmc   ? gasState.annuoSmc   : "";
+  document.getElementById("gasTotBolletta").value  = gasState.active && gasState.totBolletta? gasState.totBolletta: "";
+  document.getElementById("gasSpesaAnnua").value   = gasState.active && gasState.spesaAnnua ? gasState.spesaAnnua : "";
+  document.getElementById("gasFlatExtra").style.display = isGasFlatAvailable() ? "block" : "none";
   const isUpsell = (_pendingGasMode === "upsell") || (gasState.active && gasState.mode === "upsell");
   const upsellExtra = document.getElementById("gasUpsellExtra");
   const dualExtra   = document.getElementById("gasDualExtra");
@@ -2484,13 +3203,20 @@ function confirmGasData(){
       mesiGas = checkedGas;
     }
   }
-  gasState = { active:true, mode, smc, qc, qf, mesi: mesiGas };
+  const annuoSmc    = parseFloat(document.getElementById("gasAnnuoSmc").value)||0;
+  const totBolletta = parseFloat(document.getElementById("gasTotBolletta").value)||0;
+  const spesaAnnua  = parseFloat(document.getElementById("gasSpesaAnnua").value)||0;
+  if(isGasFlatAvailable() && ((annuoSmc>0) !== (totBolletta>0))){
+    alert("Per l'analisi Gas FLAT servono sia il consumo annuo (Smc) sia il totale bolletta gas del periodo.\nCompila entrambi oppure lasciali vuoti.");
+    return;
+  }
+  gasState = { active:true, mode, smc, qc, qf, mesi: mesiGas, annuoSmc, totBolletta, spesaAnnua };
   closeGasModal();
   renderGasChip();
 }
 
 function removeGasData(){
-  gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[] };
+  gasState = { active:false, mode:null, smc:0, qc:0, qf:0, mesi:[], annuoSmc:0, totBolletta:0, spesaAnnua:0 };
   renderGasChip();
 }
 
@@ -2508,7 +3234,8 @@ function renderGasChip(){
   chip.classList.add("show");
   if(gasState.mode === "upsell") chip.classList.add("upsell"); else chip.classList.remove("upsell");
   const label = gasState.mode === "upsell" ? "GAS UPSELL (indipendente)" : "GAS DUAL";
-  text.innerHTML = `<strong>${label} attivo</strong> · Smc ${gasState.smc} · Q. consumi € ${money(gasState.qc)} · Q. fissa € ${money(gasState.qf)}`;
+  text.innerHTML = `<strong>${label} attivo</strong> · Smc ${gasState.smc} · Q. consumi € ${money(gasState.qc)} · Q. fissa € ${money(gasState.qf)}`
+    + (gasState.annuoSmc>0 ? ` · <strong>FLAT</strong>: ${gasState.annuoSmc.toLocaleString("it-IT")} Smc/anno, bolletta € ${money(gasState.totBolletta)}` : ``);
   addBtn.disabled = (gasState.mode === "upsell");
   upBtn.disabled  = (gasState.mode === "dual");
   _setLuceFieldsRequired(gasState.mode !== "upsell");
@@ -2528,31 +3255,56 @@ function computeMediaPSV(checkedNodes){
 }
 
 /* === calcolo gas + render card === */
+// gasKind: 'flex' (dom o business, PSV + spread) | 'bizFix' (business, prezzo fisso 0,80 €/Smc)
 function buildGasComputation(ctx){
   const isClient = ctx.isClient;
   const isBiz    = ctx.isBiz;
   const numMesi  = ctx.numMesi;
   const mediaPSV = ctx.mediaPSV;
-  const spread   = isBiz ? GAS_BIZ_SPREAD : getGasDomSpread();
-  const canone   = isBiz
-    ? (isClient ? getGasBizCanoneConv() : GAS_BIZ_CANONE_LISTINO)
-    : (isClient ? getGasDomCanoneConv() : GAS_DOM_CANONE_LISTINO);
-  const smcPrice = mediaPSV + spread;
+  const gasKind  = ctx.gasKind || "flex";
+  let canone, smcPrice, offerName, validita, expiryKey, spread = 0;
+  if(gasKind === "bizFix"){
+    canone    = isClient ? GAS_BIZ_FIX_CANONE_CONV : GAS_BIZ_FIX_CANONE_LISTINO;
+    smcPrice  = GAS_BIZ_FIX_PRICE;
+    offerName = "Fastweb Gas Business Fix";
+    validita  = "24 mesi";
+    expiryKey = "gasBizFix";
+  } else {
+    spread    = isBiz ? GAS_BIZ_SPREAD : getGasDomSpread();
+    canone    = isBiz
+      ? (isClient ? getGasBizCanoneConv() : GAS_BIZ_CANONE_LISTINO)
+      : (isClient ? getGasDomCanoneConv() : GAS_DOM_CANONE_LISTINO);
+    smcPrice  = mediaPSV + spread;
+    offerName = isBiz ? "Fastweb Gas Flex Business" : "Fastweb Gas Flex";
+    validita  = "12 mesi";
+    expiryKey = isBiz ? "gasBiz" : "gasDom";
+  }
   const fixedGas  = canone * numMesi;
   const energyGas = gasState.smc * smcPrice;
   const totalGas  = fixedGas + energyGas;
   const spesaGas  = (gasState.qc||0) + (gasState.qf||0);
   const diffGas   = spesaGas - totalGas;
-  const offerName = isBiz ? "Fastweb Gas Flex Business" : "Fastweb Gas Flex";
   const spreadTxt = (spread).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
-  return { offerName, isBiz, isClient, canone, spread, smcPrice, mediaPSV, fixedGas, energyGas, totalGas, spesaGas, diffGas, numMesi, spreadTxt };
+  return { gasKind, offerName, isBiz, isClient, canone, spread, smcPrice, mediaPSV, fixedGas, energyGas, totalGas, spesaGas, diffGas, numMesi, spreadTxt, validita, expiryKey };
+}
+
+// Bottoni preventivo di una card gas: il gas è quello della card, la luce si sceglie nel popup DUAL
+function gasActionsHTML(gasKind){
+  if(gasState.mode === "upsell"){
+    return `
+      <button class="btn whatsapp" onclick="sendUpsell('whatsapp','${gasKind}')">Invia Preventivo UPSELL Gas via WhatsApp</button>
+      <button class="btn secondary" onclick="sendUpsell('pdf','${gasKind}')">Stampa Preventivo UPSELL Gas</button>`;
+  }
+  return `
+    <button class="btn whatsapp" onclick="askDualChoice('whatsapp','${gasKind}')">Invia Preventivo DUAL via WhatsApp</button>
+    <button class="btn secondary" onclick="askDualChoice('pdf','${gasKind}')">Stampa Preventivo DUAL</button>`;
 }
 
 function renderGasCard(g, ctx){
   const card = document.createElement("div");
   card.innerHTML = `
     <div class="offerResult ${g.diffGas>=0 ? "green-bg" : "red-bg"}">
-      <h3 class="resultTitle">Offerta ${g.offerName}${gasState.mode==="upsell"?" — UPSELL":" (DUAL)"}</h3>
+      <h3 class="resultTitle">🔥 Offerta ${g.offerName}${gasState.mode==="upsell"?" — UPSELL":" (DUAL)"}</h3>
       <p class="periodoRef">Periodo di riferimento gas: ${ctx.periodoTxt}</p>
       ${ctx.periodiDiversi ? `<p class="periodoRef" style="color:#a0660b; font-weight:700; font-size:14px">⚠ Periodo gas diverso dalla luce (luce: ${ctx.periodoLuceTxt})</p>` : ""}
       <div class="sectionTitle">Analisi periodo</div>
@@ -2563,8 +3315,9 @@ function renderGasCard(g, ctx){
       <div class="kv"><div>Costo con ${g.offerName}</div><div>€ ${money(g.totalGas)}</div></div>
       <div class="kv"><div>di cui quota fissa${g.isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(g.fixedGas)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(g.energyGas)}</div></div>
-      <div class="kv"><div>Scadenza offerta</div><div><strong>${getExpiry(g.isBiz?'gasBiz':'gasDom')}</strong></div></div>
-      <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>${getExpiry(g.expiryKey)}</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>${g.validita}</strong></div></div>
+      ${g.gasKind==="bizFix" ? `<div class="hint" style="margin-top:6px">Prezzo fisso gas <strong>€ ${eur2(GAS_BIZ_FIX_PRICE)}/Smc</strong> • vendibile solo con Switch</div>` : ``}
       ${gasState.mode==="upsell"
         ? `<div class="hint" style="margin-top:6px">Modalità <strong>UPSELL</strong>: cliente già Fastweb Luce. Only Gas non gestibile.</div>`
         : `<div class="hint" style="margin-top:6px">Modalità <strong>DUAL</strong>: gas attivato in contestuale alla luce.</div>`}
@@ -2576,10 +3329,143 @@ function renderGasCard(g, ctx){
   return card.firstElementChild;
 }
 
+/* ====================== GAS FLAT: analisi a fasce ====================== */
+function gasFlatPeriodCosts(data, opt){
+  const fixed = opt.monthly * data.numMesiGas;
+  let seasonal = 0, nSummer = 0, nWinter = 0;
+  data.mesiGas.forEach(m=>{
+    if(isSummerMonth(m)){ seasonal += gasFlatMonthly(opt.tierIdx, data.isClient, "summer"); nSummer++; }
+    else                { seasonal += gasFlatMonthly(opt.tierIdx, data.isClient, "winter"); nWinter++; }
+  });
+  if(!data.mesiGas.length) seasonal = fixed;
+  return { fixed, seasonal, nSummer, nWinter };
+}
+
+function buildGasFlatCardHTML(data, t){
+  const opt  = data.options.find(o=>o.tierIdx===t);
+  const best = data.options.find(o=>o.tierIdx===data.bestTierIdx);
+  const tier = TIER_NAMES[t];
+  const listino = gasFlatMonthly(t,false,"fixed");
+  const sum = gasFlatMonthly(t,data.isClient,"summer"), win = gasFlatMonthly(t,data.isClient,"winter");
+  const pc  = gasFlatPeriodCosts(data, opt);
+  const periodDelta = data.totBolletta - pc.fixed;
+  const annualDelta = data.hasSpesaAnnua ? (data.spesaAnnua - opt.totalAnnual) : null;
+  const bgClass = (data.hasSpesaAnnua ? annualDelta : periodDelta) >= 0 ? "green-bg" : "red-bg";
+  const isRecommended = t === data.bestTierIdx;
+  const others = data.options.filter(o=>o.tierIdx!==t).sort((a,b)=>a.totalAnnual-b.totalAnnual);
+  let comparison = "";
+  if(isRecommended && others[0]){
+    comparison = `<div class="kv"><div>Risparmio vs alternativa (${TIER_NAMES[others[0].tierIdx]})</div><div><strong>€ ${money(others[0].totalAnnual-opt.totalAnnual)}</strong></div></div>`;
+  } else if(!isRecommended){
+    const d = opt.totalAnnual - best.totalAnnual;
+    comparison = `<div class="kv"><div>Differenza vs fascia consigliata (${TIER_NAMES[best.tierIdx]})</div><div><strong>${d>=0?"€ "+money(d):"- € "+money(Math.abs(d))}</strong></div></div>`;
+  }
+  const modeLabel = gasState.mode==="upsell" ? " — UPSELL" : " (DUAL)";
+  return `
+    <div class="flatNavLabel">${isRecommended ? "🔥 GAS FLAT · FASCIA CONSIGLIATA" : "🔥 GAS FLAT · ANALISI FASCIA "+tier}</div>
+    <div class="offerResult ${bgClass}">
+      <h3 class="resultTitle">🔥 Offerta Fastweb Gas FLAT ${tier}${modeLabel}</h3>
+      <p class="periodoRef">Periodo di riferimento gas: ${data.periodoGasTxt}</p>
+      ${data.periodiDiversi ? `<p class="periodoRef" style="color:#a0660b; font-weight:700; font-size:14px">⚠ Periodo gas diverso dalla luce (luce: ${data.periodoLuceTxt})</p>` : ""}
+
+      <div class="kv"><div>Fascia visualizzata</div><div><strong>${tier}</strong></div></div>
+      <div class="kv"><div>Canone mensile fisso</div>
+        <div><strong>€ ${money(opt.monthly)}</strong>
+        ${data.isClient
+          ? `<span class='hint'>(sconto convergenza cliente Fastweb/Vodafone: -€${money(GAS_FLAT_CONV_DISCOUNT)} - listino €${money(listino)})</span>`
+          : `<span class='hint'>(listino - clienti Fastweb/Vodafone: €${money(listino-GAS_FLAT_CONV_DISCOUNT)})</span>`}
+        </div>
+      </div>
+      <div class="kv"><div>Oppure canone stagionale</div><div><span style="white-space:nowrap"><strong>☀️ € ${money(sum)}</strong> <span class="hint">apr-set</span></span><br><span style="white-space:nowrap"><strong>❄️ € ${money(win)}</strong> <span class="hint">ott-mar</span></span><br><span class="hint">stessa spesa annua del fisso</span></div></div>
+      <div class="kv"><div>Soglia fascia</div><div><strong>fino a ${opt.threshold.toLocaleString("it-IT")} Smc/anno</strong></div></div>
+      <div class="kv"><div>Extra oltre soglia / restituzione</div><div><strong>€ ${eur2(opt.rate)}/Smc</strong></div></div>
+      <div class="kv"><div>Scadenza offerta</div><div><strong>${getExpiry('gasFlat')}</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>${GAS_FLAT_VALIDITA}</strong></div></div>
+
+      <div class="sectionTitle">Analisi bolletta gas (periodo selezionato)</div>
+      <div class="kv"><div>Totale bolletta gas inserito</div><div>€ ${money(data.totBolletta)}</div></div>
+      <div class="kv"><div>Spesa canone fisso (${money(opt.monthly)} € × ${data.numMesiGas} mesi)</div><div>€ ${money(pc.fixed)}</div></div>
+      <div class="kv"><div>Con canone stagionale (${pc.nWinter} mesi inverno, ${pc.nSummer} estate)</div><div>€ ${money(pc.seasonal)}</div></div>
+      ${periodDelta >= 0
+        ? `<div class='savings ok'>Risparmio su bolletta gas di € ${money(periodDelta)}</div>`
+        : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(periodDelta))}</div>`}
+
+      <div class="divider"></div>
+      <div class="sectionTitle">Analisi annuale</div>
+      <div class="kv"><div>Consumo annuo gas inserito</div><div><strong>${data.annuoSmc.toLocaleString("it-IT")} Smc</strong></div></div>
+      <div class="kv"><div>Annuale fascia (canone × 12)</div><div>€ ${money(opt.baseAnnual)}</div></div>
+      ${opt.extraSmc>0 ? `<div class="kv"><div>Extra oltre soglia (${opt.extraSmc.toLocaleString("it-IT")} Smc × €${eur2(opt.rate)})</div><div>€ ${money(opt.extraAnnual)}</div></div>` : ""}
+      ${opt.marginSmc>0 ? `<div class="kv"><div>Restituzione sotto soglia (${opt.marginSmc.toLocaleString("it-IT")} Smc × €${eur2(opt.refundRate)}${opt.lowUse?" incl. bonus 0,02 per consumi &lt; 70%":""})</div><div>- € ${money(opt.refund)}</div></div>` : ""}
+      <div class="kv"><div>Totale annuale (canone + extra - restituzione)</div><div><strong>€ ${money(opt.totalAnnual)}</strong></div></div>
+      ${comparison}
+      ${data.hasSpesaAnnua ? `
+        <div class="kv"><div>Spesa annua gas inserita</div><div>€ ${money(data.spesaAnnua)}</div></div>
+        ${annualDelta>=0
+          ? `<div class="savings ok">Totale risparmio annuo gas: € ${money(annualDelta)}</div>`
+          : `<div class="savings ko">Spesa annua gas superiore: € ${money(Math.abs(annualDelta))}</div>`}` : ``}
+
+      <div class="gasFlatInfo">Vendibile solo in <strong>Switch</strong> • solo con <strong>Fastweb Luce</strong> • uso domestico C2-C3 • 1 cambio soglia e 1 cambio modalità inclusi.<br>
+      Il confronto FLAT è sul <strong>totale bolletta gas</strong> (materia, trasporto, oneri e IVA inclusi).</div>
+      <div class="offerActions">${gasActionsHTML('flat')}</div>
+    </div>`;
+}
+
+function renderCurrentGasFlat(){
+  if(!currentGasFlatAnalysis) return;
+  const host = document.getElementById("gasFlatAnalysisCard");
+  const prevBtn = document.getElementById("gasFlatPrevBtn");
+  const nextBtn = document.getElementById("gasFlatNextBtn");
+  if(!host || !prevBtn || !nextBtn) return;
+  host.innerHTML = buildGasFlatCardHTML(currentGasFlatAnalysis, currentGasFlatAnalysis.currentTierIdx);
+  const allowed = getAllowedFlatTargets(currentGasFlatAnalysis.bestTierIdx, currentGasFlatAnalysis.currentTierIdx);
+  prevBtn.disabled = allowed.prev === null;
+  nextBtn.disabled = allowed.next === null;
+  prevBtn.onclick = ()=>{ if(allowed.prev!==null){ currentGasFlatAnalysis.currentTierIdx = allowed.prev; renderCurrentGasFlat(); } };
+  nextBtn.onclick = ()=>{ if(allowed.next!==null){ currentGasFlatAnalysis.currentTierIdx = allowed.next; renderCurrentGasFlat(); } };
+  // swipe su smartphone
+  let sx = 0;
+  host.ontouchstart = e=>{ sx = e.changedTouches[0].clientX; };
+  host.ontouchend = e=>{
+    const d = e.changedTouches[0].clientX - sx;
+    if(Math.abs(d) < 40) return;
+    if(d < 0 && allowed.next!==null){ currentGasFlatAnalysis.currentTierIdx = allowed.next; renderCurrentGasFlat(); }
+    if(d > 0 && allowed.prev!==null){ currentGasFlatAnalysis.currentTierIdx = allowed.prev; renderCurrentGasFlat(); }
+  };
+}
+
+function mountGasFlatNavigator(data, parent){
+  currentGasFlatAnalysis = { ...data, currentTierIdx: data.bestTierIdx };
+  const wrap = document.createElement("div");
+  wrap.className = "flatNavWrap";
+  wrap.innerHTML = `
+    <div class="flatNavTop">
+      <button id="gasFlatPrevBtn" class="flatNavBtn" type="button" aria-label="Fascia gas precedente">←</button>
+      <div class="flatNavCardHost">
+        <div id="gasFlatAnalysisCard"></div>
+        <div class="flatSwipeHint">Su smartphone puoi scorrere a sinistra o destra per vedere la fascia vicina</div>
+      </div>
+      <button id="gasFlatNextBtn" class="flatNavBtn" type="button" aria-label="Fascia gas successiva">→</button>
+    </div>`;
+  parent.appendChild(wrap);
+  renderCurrentGasFlat();
+}
+
 /* === scelta luce per Preventivo DUAL === */
 let _dualPendingChannel = null; // 'whatsapp' | 'pdf'
-function askDualChoice(channel){
+function sendUpsell(channel, gasKind){
+  if(typeof _buildUpsellPayload !== "function"){ alert("Prima genera il preventivo."); return; }
+  _upsellGasKind = gasKind || "flex";
+  wUPSELL = _buildUpsellPayload(_upsellGasKind);
+  if(channel === "whatsapp") sendWhatsApp("upsell"); else printOfferPdf("upsell");
+}
+function askDualChoice(channel, gasKind){
   _dualPendingChannel = channel;
+  _dualGasKind = gasKind || "flex";
+  const gasLbl = _dualGasKind==="flat" ? "Fastweb Gas FLAT"
+               : _dualGasKind==="bizFix" ? "Fastweb Gas Business Fix"
+               : (_dualIsBiz ? "Fastweb Gas Flex Business" : "Fastweb Gas Flex");
+  const t = document.getElementById("dualChoiceTitle");
+  if(t) t.nextElementSibling.innerHTML = `Seleziona l'offerta luce da combinare con la <strong>${gasLbl}</strong> nel preventivo DUAL.`;
   document.getElementById("dualChoiceFix").textContent  = _dualIsBiz ? "Luce Business FIX" : "Luce FIX";
   document.getElementById("dualChoiceFlex").textContent = _dualIsBiz ? "Luce Business FLEX" : "Luce FLEX";
   const flatBtn = document.getElementById("dualChoiceFlat");
@@ -2597,10 +3483,12 @@ function executeDualChoice(luceType){
   let kind;
   if(luceType === "fix")       kind = "dualFix";
   else if(luceType === "flex") kind = "dualFlex";
-  else if(luceType === "flat"){
-    kind = "dualFlat";
-    if(typeof _rebuildDualFlat === "function") _rebuildDualFlat();
-  } else return;
+  else if(luceType === "flat") kind = "dualFlat";
+  else return;
+  if(typeof _buildDualPayload !== "function"){ alert("Prima genera il preventivo."); return; }
+  // costruisco il testo ora: usa le fasce FLAT (luce e gas) attualmente visualizzate
+  const txt = _buildDualPayload(luceType, _dualGasKind);
+  if(kind==="dualFix") wDUAL_FIX = txt; else if(kind==="dualFlex") wDUAL_FLEX = txt; else wDUAL_FLAT = txt;
   if(_dualPendingChannel === "whatsapp") sendWhatsApp(kind);
   else if(_dualPendingChannel === "pdf") printOfferPdf(kind);
   _dualPendingChannel = null;
