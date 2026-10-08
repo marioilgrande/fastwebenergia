@@ -92,17 +92,17 @@
   .offerResult.green-bg{background:var(--ok)}
   .offerResult.red-bg{background:var(--bad)}
   /* luce = arancio, gas = blu (come il comparatore unico) */
-  .offerResult.svc-luce{border-left:6px solid #f57c00}
-  .offerResult.svc-gas{border-left:6px solid #0277bd}
-  .svc-luce .resultTitle{color:#e65100}
-  .svc-gas .resultTitle{color:#0277bd}
+  .offerResult.svc-luce{border-left:6px solid #f7bd2b}
+  .offerResult.svc-gas{border-left:6px solid #f57c00}
+  .svc-luce .resultTitle{color:#9a6b00}
+  .svc-gas .resultTitle{color:#e65100}
   .svcHead{display:flex; align-items:center; gap:10px; font-weight:900; font-size:16px; margin:22px 0 4px; padding:10px 14px; border-radius:12px; letter-spacing:.2px}
   .svcHead .ic{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex:0 0 30px}
-  .svcHead.luce{background:#fff3e0; color:#e65100} .svcHead.luce .ic{background:#e65100}
-  .svcHead.gas{background:#e3f2fd; color:#0277bd} .svcHead.gas .ic{background:#0277bd}
-  .flatNavLabel.luce{color:#e65100 !important} .flatNavLabel.gas{color:#0277bd !important}
-  .flatNavWrap.svc-luce .flatNavBtn{background:#f57c00}
-  .flatNavWrap.svc-gas .flatNavBtn{background:#0277bd}
+  .svcHead.luce{background:#fff8dc; color:#9a6b00} .svcHead.luce .ic{background:#f7bd2b}
+  .svcHead.gas{background:#fff3e0; color:#e65100} .svcHead.gas .ic{background:#e65100}
+  .flatNavLabel.luce{color:#9a6b00 !important} .flatNavLabel.gas{color:#e65100 !important}
+  .flatNavWrap.svc-luce .flatNavBtn{background:#e0a800}
+  .flatNavWrap.svc-gas .flatNavBtn{background:#f57c00}
   .resultTitle{margin:0 0 8px; font-size:18px}
   .periodoRef{margin:0 0 10px; font-weight:700; color:#3c356e}
   .kv{display:grid; grid-template-columns:minmax(180px,1fr) minmax(120px,1fr); gap:8px; margin:8px 0}
@@ -137,6 +137,21 @@
   .gasFlatInfo{margin-top:10px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.55); border:1px dashed #d6a800; font-size:13px; font-weight:700; line-height:1.4}
   .subtitle{margin:0 0 12px; font-weight:900}
   .desc{margin:12px 0 0; line-height:1.35; font-weight:800}
+  /* riepilogo: luce arancio, gas blu */
+  .riepilogoHeader.luce{background:linear-gradient(90deg,var(--grad-a),var(--grad-b))}
+  .riepilogoHeader.gas{background:linear-gradient(90deg,#ef6c00,#ffa726)}
+  .cardTier.luce{background:linear-gradient(135deg,var(--grad-a) 0%,var(--grad-b) 100%)}
+  .cardTier.luce .pill{background:#9b91d6}
+  .cardTier.luce .oldPrice{color:#6b5fa8}
+  .cardTier.gas{background:linear-gradient(135deg,#ffa726 0%,#ffe0b2 100%); color:#4a2500; box-shadow:0 12px 30px rgba(239,108,0,.18)}
+  .cardTier.gas .pill{background:#e65100}
+  .cardTier.gas .oldPrice{color:#8a4b12}
+  .riepOffer{border-radius:12px; padding:12px 14px; margin:10px 0; border-left:6px solid}
+  .riepOffer .sectionTitle{margin-top:0}
+  .riepOffer.luce{background:#fff8dc; border-left-color:#f7bd2b}
+  .riepOffer.luce .sectionTitle{color:#9a6b00}
+  .riepOffer.gas{background:#fff3e0; border-left-color:#f57c00}
+  .riepOffer.gas .sectionTitle{color:#e65100}
   .violetSeparator{height:10px; border-radius:10px; background:rgba(124,112,180,.25); margin:10px 0 6px}
 
   .clientToggle{display:flex; gap:8px; align-items:center}
@@ -951,7 +966,7 @@ function renderQuotePdf(m){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:"mm", format:"a4" });
   const BRAND_D=[70,60,130], DARK=[33,28,70], TEXT=[60,60,75], MUTED=[120,120,140],
-        BG_SOFT=[246,244,252], ACCENT=[247,189,43], LUCEC=[239,120,0], GASC=[2,119,189],
+        BG_SOFT=[246,244,252], ACCENT=[247,189,43], LUCEC=[247,189,43], LUCE_T=[160,110,0], GASC=[239,120,0],
         OK=[30,135,70], KO=[195,55,70], OK_BG=[226,245,232], KO_BG=[253,232,234], RULE=[225,220,240];
   const PAGE_W=210, PAGE_H=297, L=14, W=PAGE_W-2*L, GAP=4;
   const E = n => "€ " + moneyG(Math.abs(n));
@@ -1052,7 +1067,7 @@ function renderQuotePdf(m){
       doc.setFillColor(...BG_SOFT); doc.roundedRect(x, yy, cw, cardH, 2, 2, "F");
       const band = o.c.tipo==="gas" ? GASC : LUCEC;
       doc.setFillColor(...band); doc.roundedRect(x, yy, cw, 7, 2, 2, "F"); doc.rect(x, yy+4, cw, 3, "F");
-      font("bold",9,[255,255,255]);
+      font("bold",9, o.c.tipo==="gas" ? [255,255,255] : DARK);
       doc.text((o.c.tipo==="gas" ? "GAS · " : "LUCE · ") + o.c.name, x+4, yy+4.9);
       let cy = yy + 7 + 4.6;
       o.lines.forEach(r=>{
@@ -1074,7 +1089,7 @@ function renderQuotePdf(m){
   sectionTitle("Come abbiamo calcolato");
   {
     const drawDet = (d, x, w, yy)=>{
-      font("bold",8.4, /^Gas/.test(d.title) ? GASC : /^Luce/.test(d.title) ? LUCEC : BRAND_D); doc.text(d.title, x, yy); yy += 4.4;
+      font("bold",8.4, /^Gas/.test(d.title) ? GASC : /^Luce/.test(d.title) ? LUCE_T : BRAND_D); doc.text(d.title, x, yy); yy += 4.4;
       d.rows.forEach(r=>{
         const ind = r.indent ? 3 : 0;
         font(r.bold?"bold":"normal", 8.1, r.bold?DARK:TEXT);
@@ -1864,8 +1879,8 @@ function renderFlatCards(){
 
   const container=document.createElement("div");
   container.innerHTML=`
-    <div class="riepilogoHeader">
-      <div class="fadeInUp" style="font-weight:900;letter-spacing:.3px">NUOVE OFFERTE FASTWEB LUCE FLAT</div>
+    <div class="riepilogoHeader luce">
+      <div class="fadeInUp" style="font-weight:900;letter-spacing:.3px">💡 NUOVE OFFERTE FASTWEB LUCE FLAT</div>
       <div class="clientToggle" aria-label="Seleziona tipo prezzo">
         <button class="seg ${!isClientR?'active':''}" data-client="0" type="button">Listino</button>
         <button class="seg ${isClientR?'active':''}" data-client="1" type="button">Clienti Fastweb</button>
@@ -1891,7 +1906,7 @@ function renderFlatCards(){
     const ultraNote = t===4 ? `<br/>tolleranza fino a ${(THRESHOLDS[t]+ULTRA_TOLERANCE).toLocaleString("it-IT")} kWh/anno` : "";
 
     const card=document.createElement("div");
-    card.className="cardTier";
+    card.className="cardTier luce";
     card.innerHTML=`
       <span class="pill">${TIER_NAMES[t]}</span>
       ${showOld? `<span class="oldPrice">${list.toLocaleString("it-IT")}€</span>` : ``}
@@ -1935,7 +1950,7 @@ function renderGasFlatCards(){
 
   const container=document.createElement("div");
   container.innerHTML=`
-    <div class="riepilogoHeader" style="margin-top:14px">
+    <div class="riepilogoHeader gas" style="margin-top:14px">
       <div class="fadeInUp" style="font-weight:900;letter-spacing:.3px">🔥 NUOVE OFFERTE FASTWEB GAS FLAT</div>
       <div class="clientToggle" aria-label="Seleziona tipo prezzo">
         <button class="seg ${!isClientR?'active':''}" data-client="0" type="button">Listino</button>
@@ -1961,7 +1976,7 @@ function renderGasFlatCards(){
     const soglia=GAS_FLAT_THRESHOLDS[t].toLocaleString("it-IT");
     const rate=eur2(GAS_FLAT_RATE[t]);
     const card=document.createElement("div");
-    card.className="cardTier";
+    card.className="cardTier gas";
     let priceHtml;
     if(!seasonal){
       const list=gasFlatMonthly(t,false,"fixed");
@@ -2025,18 +2040,22 @@ function renderRiepilogo(){
         <button class="seg ${isClientR?'active':''}" data-client="1" type="button">Clienti Fastweb</button>
       </div>
     </div>
-    <div class="offerResult" style="margin-top:10px">
-      <div class="sectionTitle">Fastweb Luce Fix</div>
+    <div style="margin-top:10px">
+      <div class="riepOffer luce">
+      <div class="sectionTitle">💡 Fastweb Luce Fix</div>
       <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€${rateTxt(getDomFixRaw())}/kWh</strong> (+ disp. €0,011 → <strong>${rateTxt(getDomFixRaw()+0.011)}</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${getExpiryText('fix')} • ${OFFER_VALIDITY_TEXT}</div>
-      <div class="divider"></div>
-      <div class="sectionTitle">Fastweb Luce Flex</div>
+      </div>
+      <div class="riepOffer luce">
+      <div class="sectionTitle">💡 Fastweb Luce Flex</div>
       <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,026/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,037</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${getExpiryText('flex')} • ${OFFER_VALIDITY_TEXT}</div>
-      <div class="divider"></div>
-      <div class="sectionTitle">Fastweb Gas Flex</div>
+      </div>
+      <div class="riepOffer gas">
+      <div class="sectionTitle">🔥 Fastweb Gas Flex</div>
       <div>Commercializzazione: <strong>€${isClientR?getGasDomCanoneConv():GAS_DOM_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Gas: <strong>PSV + €${getGasDomSpread().toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})}/Smc</strong></div>
       <div class="hint" style="margin-top:6px">${getExpiryText('gasDom')} • Validità offerta: 12 mesi • Attivabile in DUAL con luce contestuale o in upsell su clienti Fastweb Luce</div>
+      </div>
     </div>
     <div class="violetSeparator"></div>`;
   r.append(domestic);
@@ -2055,23 +2074,28 @@ function renderRiepilogo(){
         <button class="seg ${isClientR?'active':''}" data-client="1" type="button">Clienti Fastweb</button>
       </div>
     </div>
-    <div class="offerResult" style="margin-top:10px">
-      <div class="sectionTitle">Fastweb Luce Business Fix</div>
+    <div style="margin-top:10px">
+      <div class="riepOffer luce">
+      <div class="sectionTitle">💡 Fastweb Luce Business Fix</div>
       <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€${rateTxt(getBizFixRaw())}/kWh</strong> (+ disp. €0,011 → <strong>${rateTxt(getBizFixRaw()+0.011)}</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${getExpiryText('businessFix')} • Validità offerta: ${getBizFixValidita()}</div>
-      <div class="divider"></div>
-      <div class="sectionTitle">Fastweb Luce Business Flex</div>
+      </div>
+      <div class="riepOffer luce">
+      <div class="sectionTitle">💡 Fastweb Luce Business Flex</div>
       <div>Canone: <strong>€${canoneBiz}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>PUN + €0,030/kWh</strong> (+ disp. €0,011 → <strong>PUN + 0,041</strong> €/kWh)</div>
       <div class="hint" style="margin-top:6px">${getExpiryText('businessFlex')} • Validità offerta: ${getBizFlexValidita()}</div>
-      <div class="divider"></div>
-      <div class="sectionTitle">Fastweb Gas Flex Business</div>
+      </div>
+      <div class="riepOffer gas">
+      <div class="sectionTitle">🔥 Fastweb Gas Flex Business</div>
       <div>Commercializzazione: <strong>€${isClientR?getGasBizCanoneConv():GAS_BIZ_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Gas: <strong>PSV + €0,13/Smc</strong></div>
       <div class="hint" style="margin-top:6px">${getExpiryText('gasBiz')} • Validità offerta: 12 mesi • Attivabile in DUAL con luce contestuale o in upsell su clienti Fastweb Luce</div>
+      </div>
       ${isGasBizFixAvailable() ? `
-      <div class="divider"></div>
-      <div class="sectionTitle">Fastweb Gas Business Fix <span class="pill" style="font-size:11px;padding:3px 9px;vertical-align:middle">NOVITÀ</span></div>
+      <div class="riepOffer gas">
+      <div class="sectionTitle">🔥 Fastweb Gas Business Fix <span class="pill" style="font-size:11px;padding:3px 9px;vertical-align:middle;background:#e65100">NOVITÀ</span></div>
       <div>Commercializzazione: <strong>€${isClientR?GAS_BIZ_FIX_CANONE_CONV:GAS_BIZ_FIX_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente, in convergenza con Luce":"non cliente"}) + Gas: <strong>€${eur2(GAS_BIZ_FIX_PRICE)}/Smc</strong> (prezzo fisso)</div>
-      <div class="hint" style="margin-top:6px">${getExpiryText('gasBizFix')} • Condizioni economiche valide 24 mesi • Vendibile solo con Switch</div>` : ``}
+      <div class="hint" style="margin-top:6px">${getExpiryText('gasBizFix')} • Condizioni economiche valide 24 mesi • Vendibile solo con Switch</div>
+      </div>` : ``}
     </div>`;
   r.append(business);
 
