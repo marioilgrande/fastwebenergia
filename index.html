@@ -682,6 +682,9 @@ function isSep26Active(){ return new Date() >= SEP26_START; }
    ------------------------------------------------------------ */
 const OCT08_START = new Date(2026, 9, 8); // 8 ottobre 2026 (month 0-based: 9=ottobre)
 function isOct08Active(){ return new Date() >= OCT08_START; }
+// Listino dal 26/10/2026: prezzi e sconti confermati, scadenze al 15 novembre, Luce Flex Business bloccata 12 mesi
+const OCT26_START = new Date(2026, 9, 26); // 26 ottobre 2026 (month 0-based: 9=ottobre)
+function isOct26Active(){ return new Date() >= OCT26_START; }
 // FASTWEB LUCE FIX PER TE — Limited Edition dal 22 al 31/10/2026: domestico, proponibile anche ai NON clienti,
 // energia 0,119 €/kWh (+ dispacciamento), commercializzazione 12 €/mese uguale per tutti, prezzo fisso 24 mesi, solo Switch.
 // Compare e sparisce da sola fuori dalla finestra.
@@ -758,7 +761,16 @@ const OFFER_EXPIRY_OCT08 = {
   gasFlat:"25 ottobre", gasBizFix:"25 ottobre",
   fixPerTe:"31 ottobre"
 };
+// Dal 26/10/2026 tutte le offerte scadono il 15 novembre (FIX PER TE resta al 31 ottobre)
+const OFFER_EXPIRY_OCT26 = {
+  flat:"15 novembre", fix:"15 novembre", flex:"15 novembre",
+  businessFix:"15 novembre", businessFlex:"15 novembre",
+  gasDom:"15 novembre", gasBiz:"15 novembre",
+  gasFlat:"15 novembre", gasBizFix:"15 novembre",
+  fixPerTe:"31 ottobre"
+};
 function getExpiry(offerKey){
+  if(isOct26Active())      return OFFER_EXPIRY_OCT26[offerKey] || OFFER_EXPIRY_LEGACY;
   if(isOct08Active())      return OFFER_EXPIRY_OCT08[offerKey] || OFFER_EXPIRY_LEGACY;
   if(isSep26Active())      return OFFER_EXPIRY_SEP26[offerKey] || OFFER_EXPIRY_LEGACY;
   if(!isNewOffersActive()) return OFFER_EXPIRY_LEGACY;
@@ -771,6 +783,7 @@ function getBizFixValidita(){
   return isNewOffersActive() ? "24 mesi" : "36 mesi (anche con opzione Multisito)";
 }
 function getBizFlexValidita(){
+  if(isOct26Active()) return "12 mesi";
   return isNewOffersActive() ? "24 mesi" : "36 mesi (anche con opzione Multisito)";
 }
 
