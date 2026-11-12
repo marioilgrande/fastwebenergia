@@ -2618,6 +2618,10 @@ document.getElementById("bollettaForm").addEventListener("submit", function(e){
   analyzeBolletta(false);
 });
 
+/* Arrotonda al centesimo come la visualizzazione (362,825 -> 362,83), così
+   costo attuale − costo offerta = risparmio mostrato, senza scarti di 1 centesimo. */
+function cent(x){ return Math.round(((x||0) + ((x||0)>=0?1e-9:-1e-9))*100)/100; }
+
 function analyzeBolletta(skipWarning){
   const isUpsellOnly = gasState.active && gasState.mode === "upsell";
   const consumoAnnuo = parseFloat(document.getElementById("consumoAnnuo").value) || 0;
@@ -2669,7 +2673,7 @@ function analyzeBolletta(skipWarning){
 
   const qc = parseFloat(document.getElementById("quotaConsumi")?.value||"0");
   const qf = parseFloat(document.getElementById("quotaFissa")?.value||"0");
-  const spesaEnergia = qc + qf;
+  const spesaEnergia = cent(qc + qf);
 
   const disp = 0.011;
 
@@ -2677,32 +2681,32 @@ function analyzeBolletta(skipWarning){
   const kwhFixDom   = getDomFixRaw() + disp;
   const kwhFlexDom  = mediaPUN + DOM_FLEX_SPREAD + disp;
   const fixedFIX    = canoneDom * numMesi;
-  const energyFIX   = kwPeriodo * kwhFixDom;
-  const totalFIX    = fixedFIX + energyFIX;
+  const energyFIX   = cent(kwPeriodo * kwhFixDom);
+  const totalFIX    = cent(fixedFIX + energyFIX);
   const fixedFLEX   = canoneDom * numMesi;
-  const energyFLEX  = kwPeriodo * kwhFlexDom;
-  const totalFLEX   = fixedFLEX + energyFLEX;
-  const diffFIX     = spesaEnergia - totalFIX;
-  const diffFLEX    = spesaEnergia - totalFLEX;
+  const energyFLEX  = cent(kwPeriodo * kwhFlexDom);
+  const totalFLEX   = cent(fixedFLEX + energyFLEX);
+  const diffFIX     = cent(spesaEnergia - totalFIX);
+  const diffFLEX    = cent(spesaEnergia - totalFLEX);
   // Luce FIX PER TE (Limited Edition): canone 12 € per clienti e non clienti
   const fixPerTeOn  = !isBiz && isFixPerTeActive();
   const kwhFixPerTe = FIX_PER_TE_RAW + disp;
   const fixedFPT    = FIX_PER_TE_CANONE * numMesi;
-  const energyFPT   = kwPeriodo * kwhFixPerTe;
-  const totalFPT    = fixedFPT + energyFPT;
-  const diffFPT     = spesaEnergia - totalFPT;
+  const energyFPT   = cent(kwPeriodo * kwhFixPerTe);
+  const totalFPT    = cent(fixedFPT + energyFPT);
+  const diffFPT     = cent(spesaEnergia - totalFPT);
 
   const canoneBiz   = isClient ? getBizCanoneConv() : BIZ_CANONE_LISTINO;
   const kwhFixBiz   = getBizFixRaw() + disp;
   const kwhFlexBiz  = mediaPUN + BIZ_FLEX_SPREAD + disp;
   const fixedBizFIX   = canoneBiz * numMesi;
-  const energyBizFIX  = kwPeriodo * kwhFixBiz;
-  const totalBizFIX   = fixedBizFIX + energyBizFIX;
-  const diffBizFIX    = spesaEnergia - totalBizFIX;
+  const energyBizFIX  = cent(kwPeriodo * kwhFixBiz);
+  const totalBizFIX   = cent(fixedBizFIX + energyBizFIX);
+  const diffBizFIX    = cent(spesaEnergia - totalBizFIX);
   const fixedBizFLEX  = canoneBiz * numMesi;
-  const energyBizFLEX = kwPeriodo * kwhFlexBiz;
-  const totalBizFLEX  = fixedBizFLEX + energyBizFLEX;
-  const diffBizFLEX   = spesaEnergia - totalBizFLEX;
+  const energyBizFLEX = cent(kwPeriodo * kwhFlexBiz);
+  const totalBizFLEX  = cent(fixedBizFLEX + energyBizFLEX);
+  const diffBizFLEX   = cent(spesaEnergia - totalBizFLEX);
 
   const spesaAnnuaInput = parseFloat(document.getElementById("spesaAnnua")?.value || "0");
   const hasSpesaAnnua = !isNaN(spesaAnnuaInput) && spesaAnnuaInput > 0;
@@ -3712,10 +3716,10 @@ function buildGasComputation(ctx){
     expiryKey = isBiz ? "gasBiz" : "gasDom";
   }
   const fixedGas  = canone * numMesi;
-  const energyGas = gasState.smc * smcPrice;
-  const totalGas  = fixedGas + energyGas;
-  const spesaGas  = (gasState.qc||0) + (gasState.qf||0);
-  const diffGas   = spesaGas - totalGas;
+  const energyGas = cent(gasState.smc * smcPrice);
+  const totalGas  = cent(fixedGas + energyGas);
+  const spesaGas  = cent((gasState.qc||0) + (gasState.qf||0));
+  const diffGas   = cent(spesaGas - totalGas);
   const spreadTxt = (spread).toLocaleString("it-IT",{minimumFractionDigits:2, maximumFractionDigits:2});
   return { gasKind, offerName, isBiz, isClient, canone, spread, smcPrice, mediaPSV, fixedGas, energyGas, totalGas, spesaGas, diffGas, numMesi, spreadTxt, validita, expiryKey };
 }
