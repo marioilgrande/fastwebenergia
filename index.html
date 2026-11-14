@@ -735,32 +735,35 @@ function getActiveFlatPrices(){
   return _isFlatNewActive() ? BASE_LISTINO_3KW_NEW : BASE_LISTINO_3KW_LEGACY;
 }
 function getActiveFlatValidita(){
+  if(new Date() >= new Date(2026, 10, 16)) return "5 anni (fino a 17.500 sottoscrizioni)";
   return _isFlatNewActive() ? "24 mesi" : "36 mesi";
 }
-// Welcome Bonus 15€ in 3 rate da 5€ — valido 10/7/2026 → 27/8/2026, solo LUCE DOMESTICA
-function isWelcomeBonusActive(){
-  const today = new Date();
-  const start = new Date(2026, 6, 10, 0, 0, 0);         // 10 luglio 2026
-  const end   = new Date(2026, 7, 27, 23, 59, 59);      // 27 agosto 2026 EOD
-  return today >= start && today <= end;
-}
-const WELCOME_BONUS_TITLE = "Welcome Bonus Luce";
-const WELCOME_BONUS_DESC  = "15€ di sconto per i nuovi clienti, erogati automaticamente in 3 rate da 5€ nelle prime bollette utili dopo l'attivazione. Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico).";
+// Promo luce domestica in 3 rate (FLAT, FLEX e FIX), mostrata come riquadro: NON entra nel calcolo del risparmio.
+// - Welcome Bonus 15€ (3 x 5€) dal 10/7 al 27/8/2026, solo nuovi clienti
+// - Black Friday 12€ (3 x 4€) dal 16 al 30/11/2026, si somma allo sconto convergenza
+const LUCE_PROMOS = [
+  { start:new Date(2026,6,10), end:new Date(2026,7,27,23,59,59), title:"Welcome Bonus Luce", tot:15, rata:5,
+    chi:"per i nuovi clienti", periodo:"10/07 - 27/08/2026" },
+  { start:new Date(2026,10,16), end:new Date(2026,10,30,23,59,59), title:"Promo Black Friday", tot:12, rata:4,
+    chi:"in più allo sconto convergenza", periodo:"16 - 30/11/2026" }
+];
+function getLucePromo(){ const t=new Date(); return LUCE_PROMOS.find(p=>t>=p.start && t<=p.end) || null; }
+function isWelcomeBonusActive(){ return !!getLucePromo(); }
 function getWelcomeBonusHTML(){
-  if(!isWelcomeBonusActive()) return "";
+  const p = getLucePromo(); if(!p) return "";
   return `
     <div class="welcomeBonus">
       <div class="icon">🎁</div>
       <div>
-        <span class="title">${WELCOME_BONUS_TITLE} — 15€ inclusi (3 rate da 5€)</span>
-        <span class="desc">${WELCOME_BONUS_DESC}</span>
+        <span class="title">${p.title} — ${p.tot}€ di sconto (3 rate da ${p.rata}€)</span>
+        <span class="desc">${p.tot}€ di sconto ${p.chi}, erogati automaticamente in 3 rate da ${p.rata}€ nelle prime 3 bollette utili dopo l'attivazione. Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico), promo ${p.periodo}.</span>
       </div>
     </div>
   `;
 }
 function getWelcomeBonusText(){
-  if(!isWelcomeBonusActive()) return "";
-  return `\n🎁 WELCOME BONUS LUCE\n15€ di sconto per i nuovi clienti, in 3 rate da 5€ nelle prime bollette utili dopo l'attivazione. Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico).\n`;
+  const p = getLucePromo(); if(!p) return "";
+  return `\n🎁 ${p.title.toUpperCase()}\n${p.tot}€ di sconto ${p.chi}, in 3 rate da ${p.rata}€ nelle prime 3 bollette utili dopo l'attivazione. Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico), promo ${p.periodo}.\n`;
 }
 // Manteniamo il nome vecchio per retro-compatibilità nel codice esistente
 const BASE_LISTINO_3KW = BASE_LISTINO_3KW_LEGACY; // deprecato, non usare direttamente
@@ -802,6 +805,16 @@ function isOct08Active(){ return new Date() >= OCT08_START; }
 // Listino dal 26/10/2026: prezzi e sconti confermati, scadenze al 15 novembre, Luce Flex Business bloccata 12 mesi
 const OCT26_START = new Date(2026, 9, 26); // 26 ottobre 2026 (month 0-based: 9=ottobre)
 function isOct26Active(){ return new Date() >= OCT26_START; }
+/* Listino dal 16/11/2026 (Sales News 16 Novembre 26), scadenze al 30 novembre:
+   - Luce FLAT e Luce FIX domestico: condizioni bloccate 5 anni fino a 17.500 sottoscrizioni (prezzi confermati)
+   - Promo Black Friday 16-30/11: 12€ in 3 rate da 4€ su Luce FLAT, FLEX e FIX (domestico), cumulabile con la convergenza
+   - Gas FLAT: sconto convergenza 10€ -> 11€, condizioni bloccate 5 anni fino a 5.000 sottoscrizioni
+   - Gas Flex domestico: sconto convergenza 5€ -> 6€ (canone 9€), PSV + 0,12 confermato
+   - Luce FIX Business 0,180 -> 0,177 €/kWh, 36 mesi ; Gas FIX Business 0,80 -> 0,76 €/Smc, 36 mesi
+   - Business Flex luce (PUN+0,030) e gas (PSV+0,13) confermati, 12 mesi */
+const NOV16_START = new Date(2026, 10, 16); // 16 novembre 2026 (month 0-based: 10=novembre)
+function isNov16Active(){ return new Date() >= NOV16_START; }
+const DOM_FIX_VALIDITA = isNov16Active() ? "5 anni (fino a 17.500 sottoscrizioni)" : "12 mesi";
 // FASTWEB LUCE FIX PER TE — Limited Edition dal 22 al 31/10/2026: domestico, proponibile anche ai NON clienti,
 // energia 0,119 €/kWh (+ dispacciamento), commercializzazione 12 €/mese uguale per tutti, prezzo fisso 24 mesi, solo Switch.
 // Compare e sparisce da sola fuori dalla finestra.
@@ -838,7 +851,7 @@ function getDomCanoneConv(){
 }
 
 // Luce FIX Business: 0,180 €/kWh confermato
-function getBizFixRaw(){ return 0.180; }
+function getBizFixRaw(){ return isNov16Active() ? 0.177 : 0.180; }
 const BIZ_FLEX_SPREAD = 0.030;
 const BIZ_CANONE_LISTINO = 20;
 // Business FIX/FLEX: sconto 10€ -> 20€ (28/08) -> torna a 10€ (26/09)
@@ -886,7 +899,16 @@ const OFFER_EXPIRY_OCT26 = {
   gasFlat:"15 novembre", gasBizFix:"15 novembre",
   fixPerTe:"31 ottobre"
 };
+// Dal 16/11/2026 tutte le offerte scadono il 30 novembre
+const OFFER_EXPIRY_NOV16 = {
+  flat:"30 novembre", fix:"30 novembre", flex:"30 novembre",
+  businessFix:"30 novembre", businessFlex:"30 novembre",
+  gasDom:"30 novembre", gasBiz:"30 novembre",
+  gasFlat:"30 novembre", gasBizFix:"30 novembre",
+  fixPerTe:"31 ottobre"
+};
 function getExpiry(offerKey){
+  if(isNov16Active())      return OFFER_EXPIRY_NOV16[offerKey] || OFFER_EXPIRY_LEGACY;
   if(isOct26Active())      return OFFER_EXPIRY_OCT26[offerKey] || OFFER_EXPIRY_LEGACY;
   if(isOct08Active())      return OFFER_EXPIRY_OCT08[offerKey] || OFFER_EXPIRY_LEGACY;
   if(isSep26Active())      return OFFER_EXPIRY_SEP26[offerKey] || OFFER_EXPIRY_LEGACY;
@@ -897,6 +919,7 @@ function getExpiryText(offerKey){ return "Scadenza offerta: " + getExpiry(offerK
 
 // Durata contrattuale Business FIX: 36 mesi -> 24 mesi dal 28/08/2026
 function getBizFixValidita(){
+  if(isNov16Active()) return "36 mesi (anche con opzione Multisito)";
   return isNewOffersActive() ? "24 mesi" : "36 mesi (anche con opzione Multisito)";
 }
 function getBizFlexValidita(){
@@ -913,6 +936,7 @@ const GAS_BIZ_SPREAD = 0.13; // confermato
 const GAS_DOM_CANONE_LISTINO = 15;
 // Gas domestico: canone 4€ -> 0€ (28/08, commercializzazione zero) -> 5€ (26/09, sconto 10€)
 function getGasDomCanoneConv(){
+  if(isNov16Active())      return GAS_DOM_CANONE_LISTINO - 6;  // canone 9 (sconto 6€ dal 16/11)
   if(isOct08Active())      return GAS_DOM_CANONE_LISTINO - 5;  // canone 10 (sconto 5€ dall'8/10)
   if(isSep26Active())      return GAS_DOM_CANONE_LISTINO - 10; // canone 5
   if(isNewOffersActive())  return 0;
@@ -927,7 +951,8 @@ function getGasBizCanoneConv(){
 }
 
 // ===== GAS BUSINESS FIX (dall'8/10/2026) =====
-const GAS_BIZ_FIX_PRICE = 0.80;          // €/Smc componente gas
+const GAS_BIZ_FIX_PRICE = isNov16Active() ? 0.76 : 0.80;   // €/Smc componente gas (0,76 dal 16/11)
+const GAS_BIZ_FIX_VALIDITA = isNov16Active() ? "36 mesi" : "24 mesi";
 const GAS_BIZ_FIX_CANONE_LISTINO = 20;   // senza convergenza
 const GAS_BIZ_FIX_CANONE_CONV = 10;      // in convergenza con Luce Fastweb
 function isGasBizFixAvailable(){ return isOct08Active(); }
@@ -943,8 +968,8 @@ const GAS_FLAT_RATE       = [1.60, 1.50, 1.46, 1.42, 1.38]; // extra soglia = re
 const GAS_FLAT_LOW_USE_RATIO = 0.70;   // sotto il 70% della soglia...
 const GAS_FLAT_LOW_USE_BONUS = 0.02;   // ...+0,02 €/Smc di restituzione per ogni Smc non consumato
 const GAS_FLAT_MAX_SMC    = 1500;      // oltre: il fornitore può interrompere il contratto
-const GAS_FLAT_CONV_DISCOUNT = 10;     // sconto convergenza €/mese
-const GAS_FLAT_VALIDITA   = "24 mesi";
+const GAS_FLAT_CONV_DISCOUNT = isNov16Active() ? 11 : 10;  // sconto convergenza €/mese (11€ dal 16/11)
+const GAS_FLAT_VALIDITA   = isNov16Active() ? "5 anni (fino a 5.000 sottoscrizioni)" : "24 mesi";
 const SUMMER_MONTHS = ["apr","mag","giu","lug","ago","set"];
 function isGasFlatAvailable(){ return isOct08Active(); }
 function gasFlatMonthly(t, isClient, mode){
@@ -1248,7 +1273,8 @@ function renderQuotePdf(m){
     y += cardH + 2;
     if(m.bonus){
       const H=8; doc.setFillColor(...ACCENT); doc.roundedRect(L, y, W, H, 2, 2, "F");
-      font("bold",8.5,DARK); doc.text("WELCOME BONUS LUCE: 15€ di sconto per i nuovi clienti, in 3 rate da 5€ nelle prime bollette utili", L+4, y+5.2);
+      const pr = getLucePromo() || LUCE_PROMOS[0];
+      font("bold",8.5,DARK); doc.text(`${pr.title.toUpperCase()}: ${pr.tot}€ di sconto ${pr.chi}, in 3 rate da ${pr.rata}€ nelle prime bollette utili`, L+4, y+5.2);
       y += H + 2;
     }
   }
@@ -1925,7 +1951,7 @@ function printOfferPdf(kind){
     const gasKey = /^OFFERTA\s+FASTWEB GAS FLAT/i.test(_gTxt) ? "gasFlat"
                  : /^OFFERTA\s+FASTWEB GAS BUSINESS FIX/i.test(_gTxt) ? "gasBizFix"
                  : /^OFFERTA\s+FASTWEB GAS FLEX\s+BUSINESS/i.test(_gTxt) ? "gasBiz" : "gasDom";
-    const gasValidita = (gasKey==="gasFlat" || gasKey==="gasBizFix") ? "24 mesi" : "12 mesi";
+    const gasValidita = gasKey==="gasFlat" ? GAS_FLAT_VALIDITA : gasKey==="gasBizFix" ? GAS_BIZ_FIX_VALIDITA : "12 mesi";
     if(isDual){
       let scadLuce, validitaLuce;
       if(kind === "dualFlat"){
@@ -1933,7 +1959,7 @@ function printOfferPdf(kind){
         validitaLuce = getActiveFlatValidita();
       } else if(kind === "dualFix"){
         scadLuce     = getExpiry(isBizDual ? 'businessFix' : 'fix');
-        validitaLuce = isBizDual ? getBizFixValidita() : "12 mesi";
+        validitaLuce = isBizDual ? getBizFixValidita() : DOM_FIX_VALIDITA;
       } else { // dualFlex
         scadLuce     = getExpiry(isBizDual ? 'businessFlex' : 'flex');
         validitaLuce = isBizDual ? getBizFlexValidita() : "12 mesi";
@@ -1956,9 +1982,10 @@ function printOfferPdf(kind){
   }
 
   // ===== WELCOME BONUS (solo se presente nel testo — significa che è attivo e applicabile a questa offerta) =====
-  const hasWelcomeBonus = /WELCOME BONUS LUCE/i.test(txt);
+  const hasWelcomeBonus = /WELCOME BONUS LUCE|PROMO BLACK FRIDAY/i.test(txt);
+  const _pr = getLucePromo() || LUCE_PROMOS[0];
   if(hasWelcomeBonus){
-    sectionTitle("Welcome Bonus Luce");
+    sectionTitle(_pr.title);
     const bH = 16;
     // Box giallo Fastweb con bordo
     doc.setFillColor(247, 189, 43);      // grad-a
@@ -1969,11 +1996,11 @@ function printOfferPdf(kind){
     doc.setFont("helvetica","bold");
     doc.setFontSize(9.5);
     doc.setTextColor(43, 35, 90);        // violet
-    doc.text("15€ INCLUSI", L+4, y+6);
+    doc.text(`${_pr.tot}€ DI SCONTO`, L+4, y+6);
     doc.setFontSize(8);
     doc.setFont("helvetica","normal");
-    const bonusLine1 = "Nuovo cliente: 15€ di sconto in 3 rate da 5€ nelle prime bollette utili.";
-    const bonusLine2 = "Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico) - promo 10/07 - 27/08/2026.";
+    const bonusLine1 = `${_pr.tot}€ di sconto ${_pr.chi}, in 3 rate da ${_pr.rata}€ nelle prime bollette utili.`;
+    const bonusLine2 = `Valido su Fastweb Luce FLAT, FLEX e FIX (uso domestico) - promo ${_pr.periodo}.`;
     doc.text(bonusLine1, L+4, y+10);
     doc.text(bonusLine2, L+4, y+13.5);
     y += bH + 3;
@@ -2209,6 +2236,7 @@ function renderRiepilogo(){
       </div>
     </div>
     <div style="margin-top:10px">
+      ${getWelcomeBonusHTML()}
       ${isFixPerTeActive() ? `<div class="riepOffer luce">
       <div class="sectionTitle">💡 Fastweb Luce FIX PER TE <span class="limitedBadge">LIMITED EDITION</span></div>
       <div>Commercializzazione: <strong>€${FIX_PER_TE_CANONE}/mese</strong> (uguale per clienti e non clienti) + Energia: <strong>€${rateTxt(FIX_PER_TE_RAW)}/kWh</strong> (+ disp. €0,011 → <strong>${rateTxt(FIX_PER_TE_RAW+0.011)}</strong> €/kWh)</div>
@@ -2217,7 +2245,7 @@ function renderRiepilogo(){
       <div class="riepOffer luce">
       <div class="sectionTitle">💡 Fastweb Luce Fix</div>
       <div>Canone: <strong>€${canoneDom}/mese</strong> (${isClientR?"cliente":"non cliente"}) + Energia: <strong>€${rateTxt(getDomFixRaw())}/kWh</strong> (+ disp. €0,011 → <strong>${rateTxt(getDomFixRaw()+0.011)}</strong> €/kWh)</div>
-      <div class="hint" style="margin-top:6px">${getExpiryText('fix')} • ${OFFER_VALIDITY_TEXT}</div>
+      <div class="hint" style="margin-top:6px">${getExpiryText('fix')} • Validità offerta: ${DOM_FIX_VALIDITA}</div>
       </div>
       <div class="riepOffer luce">
       <div class="sectionTitle">💡 Fastweb Luce Flex</div>
@@ -2267,7 +2295,7 @@ function renderRiepilogo(){
       <div class="riepOffer gas">
       <div class="sectionTitle">🔥 Fastweb Gas Business Fix <span class="pill" style="font-size:11px;padding:3px 9px;vertical-align:middle;background:#e65100">NOVITÀ</span></div>
       <div>Commercializzazione: <strong>€${isClientR?GAS_BIZ_FIX_CANONE_CONV:GAS_BIZ_FIX_CANONE_LISTINO}/mese</strong> (${isClientR?"cliente, in convergenza con Luce":"non cliente"}) + Gas: <strong>€${eur2(GAS_BIZ_FIX_PRICE)}/Smc</strong> (prezzo fisso)</div>
-      <div class="hint" style="margin-top:6px">${getExpiryText('gasBizFix')} • Condizioni economiche valide 24 mesi • Vendibile solo con Switch</div>
+      <div class="hint" style="margin-top:6px">${getExpiryText('gasBizFix')} • Condizioni economiche valide ${GAS_BIZ_FIX_VALIDITA} • Vendibile solo con Switch</div>
       </div>` : ``}
     </div>`;
   r.append(business);
@@ -2780,7 +2808,7 @@ function analyzeBolletta(skipWarning){
       <div class="kv"><div>di cui quota fissa${isClient?' <span style="color:#0e5b3f; font-weight:700">(scontato per clienti Fastweb/Vodafone)</span>':''}</div><div>€ ${money(fixedFIX)}</div></div>
       <div class="kv"><div>di cui quota energia</div><div>€ ${money(energyFIX)}</div></div>
       <div class="kv"><div>Scadenza offerta</div><div><strong>${getExpiry('fix')}</strong></div></div>
-      <div class="kv"><div>Validità offerta</div><div><strong>12 mesi</strong></div></div>
+      <div class="kv"><div>Validità offerta</div><div><strong>${DOM_FIX_VALIDITA}</strong></div></div>
       ${diffFIX>=0 ? `<div class='savings ok'>L’offerta prevede un risparmio di € ${money(diffFIX)}</div>`
                    : `<div class='savings ko'>L’offerta in questo caso è superiore di € ${money(Math.abs(diffFIX))}</div>`}
       ${getWelcomeBonusHTML()}
@@ -2944,7 +2972,7 @@ Costo con Fastweb Luce Fix: € ${money(totalFIX)}
 - di cui quota fissa${isClient?" (scontato per clienti Fastweb/Vodafone)":""}: € ${money(fixedFIX)}
 - di cui quota energia: € ${money(energyFIX)}
 Scadenza offerta: ${getExpiry('fix')}
-Validità offerta: 12 mesi
+Validità offerta: ${DOM_FIX_VALIDITA}
 ${diffFIX>=0 ? "Risparmio: € "+money(diffFIX) : "L’offerta in questo caso è superiore di € "+money(Math.abs(diffFIX))}
 ${getWelcomeBonusText()}
 ${closingNote}`;
@@ -3120,7 +3148,7 @@ ${gasBlockFor(gk)}
 ${gk==="flat" ? flatClosingNote : closingNote}`;
 
     // ---- Blocchi LUCE ----
-    const validitaLuceFix  = isBiz ? getBizFixValidita()  : "12 mesi";
+    const validitaLuceFix  = isBiz ? getBizFixValidita()  : DOM_FIX_VALIDITA;
     const validitaLuceFlex = isBiz ? getBizFlexValidita() : "12 mesi";
     const luceFixName  = isBiz ? "Fastweb Luce Business Fix"  : "Fastweb Luce Fix";
     const luceFlexName = isBiz ? "Fastweb Luce Business Flex" : "Fastweb Luce Flex";
@@ -3288,7 +3316,7 @@ ${(lk==="flat" || gk==="flat") ? flatClosingNote : closingNote}`;
       const prezzo = fix ? `€ ${rateTxt(isBiz?getBizFixRaw():getDomFixRaw())}/kWh (prezzo fisso)`
                          : `PUN + € ${rateTxt(isBiz?BIZ_FLEX_SPREAD:DOM_FLEX_SPREAD)}/kWh`;
       const expKey = isBiz ? (fix?"businessFix":"businessFlex") : lk;
-      const durata = isBiz ? (fix?getBizFixValidita():getBizFlexValidita()) : "12 mesi";
+      const durata = isBiz ? (fix?getBizFixValidita():getBizFlexValidita()) : (fix ? DOM_FIX_VALIDITA : "12 mesi");
       return {
         name, tipo:"luce", saving:diff, annual:null,
         cond:{ name, tipo:"luce", rows:[
@@ -3703,7 +3731,7 @@ function buildGasComputation(ctx){
     canone    = isClient ? GAS_BIZ_FIX_CANONE_CONV : GAS_BIZ_FIX_CANONE_LISTINO;
     smcPrice  = GAS_BIZ_FIX_PRICE;
     offerName = "Fastweb Gas Business Fix";
-    validita  = "24 mesi";
+    validita  = GAS_BIZ_FIX_VALIDITA;
     expiryKey = "gasBizFix";
   } else {
     spread    = isBiz ? GAS_BIZ_SPREAD : getGasDomSpread();
