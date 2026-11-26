@@ -196,7 +196,15 @@
   .welcomeBonus .desc{font-size:13px; font-weight:700; opacity:.95}
   .offerActions{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px}
 
-  #toggleRiepilogoBtn{width:100%; margin-top:12px}
+  /* tasti in alto: guida + riepilogo offerte (finestra come multienergia) */
+  .topBtns{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 14px}
+  .topBtns .btn{width:100%; margin:0}
+  .btnRiep{background:var(--grad-a); color:var(--violet); font-size:15px; letter-spacing:.3px}
+  @media (max-width:600px){ .topBtns .btn{font-size:13px; padding:11px 8px} }
+  .riepCard{padding-top:0}
+  .riepHead{position:sticky; top:0; z-index:3; background:#fff; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 0 10px; margin-bottom:4px; border-bottom:1px solid var(--line)}
+  .riepHead .modalTitle{margin:0; font-size:17px}
+  .riepHead .btn{flex:0 0 auto; padding:8px 14px; font-size:14px; width:auto; margin:0}
   /* tasto + finestra "Quali dati devo inserire?" (stessa guida di Sorgenia/Plenitude) */
   .btnGuida{width:100%; margin:0 0 14px; background:var(--brand); font-size:15px; letter-spacing:.3px}
   .modalCard.wide{width:min(980px,100%)}
@@ -249,7 +257,7 @@
     .guidaSwipe{display:block}
     .guidaNote{font-size:13px}
   }
-  #riepilogoOfferte{display:none; margin-top:14px}
+  #riepilogoOfferte{display:block; margin-top:6px}
   .riepilogoHeader{border-radius:14px; padding:14px 16px; color:#fff; font-weight:900; letter-spacing:.3px; background:linear-gradient(90deg,var(--grad-a),var(--grad-b)); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px}
   .powerSwitch{display:flex; gap:10px; flex-wrap:wrap}
   .chip{padding:8px 14px; border-radius:999px; border:3px solid var(--brand); font-weight:900; color:var(--brand); background:#fff; cursor:pointer}
@@ -458,7 +466,10 @@
 
     <section id="datiBolletta">
       <h2>Analisi Bolletta</h2>
-      <button type="button" class="btn btnGuida" onclick="apriGuida()">📄 QUALI DATI DEVO INSERIRE?</button>
+      <div class="topBtns">
+        <button type="button" class="btn btnGuida" onclick="apriGuida()">📄 QUALI DATI DEVO INSERIRE?</button>
+        <button type="button" class="btn btnRiep" id="btnRiepilogo" onclick="apriRiepilogo()">📋 RIEPILOGO OFFERTE</button>
+      </div>
       <!-- CARICA BOLLETTA PDF: legge i dati (lettura del comparatore multienergia) e compila il form -->
       <div class="imp" id="imp">
         <input type="file" id="impFile" accept="application/pdf,.pdf" hidden>
@@ -726,8 +737,16 @@
       <div id="resultBanner" class="promoBanner">NUOVE OFFERTE FASTWEB LUCE FLAT</div>
       <div id="risultato"></div>
 
-      <button id="toggleRiepilogoBtn" class="btn">Apri riepilogo offerte</button>
-      <div id="riepilogoOfferte"></div>
+      <!-- Finestra: riepilogo offerte (si apre dal tasto in alto) -->
+      <div id="riepModal" class="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="riepTitle" onclick="if(event.target===this)chiudiRiepilogo()">
+        <div class="modalCard wide riepCard">
+          <div class="riepHead">
+            <div class="modalTitle" id="riepTitle">RIEPILOGO OFFERTE FASTWEB ENERGIA</div>
+            <button type="button" class="btn secondary" onclick="chiudiRiepilogo()">Chiudi</button>
+          </div>
+          <div id="riepilogoOfferte"></div>
+        </div>
+      </div>
     </section>
   </div>
 
@@ -2369,20 +2388,20 @@ function renderRiepilogo(){
   }));
 }
 
-document.getElementById("toggleRiepilogoBtn").addEventListener("click",()=>{
+function apriRiepilogo(){
   const r=document.getElementById("riepilogoOfferte");
-  if(r.style.display==="none"||r.style.display===""){
-    r.style.display="block";
-    r.innerHTML="";
-    riepilogoIsClient=null;
-    renderRiepilogo();
-    document.getElementById("toggleRiepilogoBtn").textContent="Chiudi riepilogo offerte";
-  }else{
-    r.style.display="none";
-    r.innerHTML="";
-    document.getElementById("toggleRiepilogoBtn").textContent="Apri riepilogo offerte";
-  }
-});
+  r.innerHTML="";
+  riepilogoIsClient=null;
+  renderRiepilogo();
+  const m=document.getElementById("riepModal");
+  m.classList.add("open");
+  m.querySelector(".modalCard").scrollTop=0;
+}
+function chiudiRiepilogo(){
+  document.getElementById("riepModal").classList.remove("open");
+  document.getElementById("riepilogoOfferte").innerHTML="";
+}
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && document.getElementById("riepModal").classList.contains("open")) chiudiRiepilogo(); });
 
 function shouldWarnFlat(consumoAnnuo, isBiz, potenzaSel){
   if(isBiz) return false;
@@ -3768,7 +3787,18 @@ ${(lk==="flat" || gk==="flat") ? flatClosingNote : closingNote}`;
   banner.classList.remove('fadeInUp');
   void banner.offsetWidth;
   banner.classList.add('fadeInUp');
-  banner.scrollIntoView({behavior:'smooth', block:'start'});
+  vaiAlRisultato(banner);
+}
+
+/* Porta la schermata sui risultati dopo "Analizza bolletta": chiude la tastiera del telefono,
+   scorre in modo fluido e, se il browser non ci arriva (es. iPhone con tastiera aperta), salta lì. */
+function vaiAlRisultato(el){
+  try{ document.activeElement && document.activeElement.blur && document.activeElement.blur(); }catch(e){}
+  const y = () => Math.max(0, el.getBoundingClientRect().top + window.scrollY - 8);
+  requestAnimationFrame(()=>{
+    window.scrollTo({top:y(), behavior:"smooth"});
+    setTimeout(()=>{ if(Math.abs(el.getBoundingClientRect().top - 8) > 60) window.scrollTo(0, y()); }, 900);
+  });
 }
 
 /* ====================== GESTIONE GAS ====================== */
